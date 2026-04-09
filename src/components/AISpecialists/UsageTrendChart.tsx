@@ -22,14 +22,13 @@ const Card = styled.div`
   padding: var(--space-5, 20px);
   display: flex;
   flex-direction: column;
-  gap: var(--space-1, 4px);
 `;
 
 const CardHeader = styled.div`
   display: flex;
   flex-direction: column;
   gap: var(--space-1, 4px);
-  margin-bottom: var(--space-3, 12px);
+  margin-bottom: var(--space-4, 16px);
 `;
 
 const CardTitle = styled.p`

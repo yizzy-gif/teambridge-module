@@ -30,7 +30,7 @@ interface UsageSummaryCardsProps {
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: var(--space-3, 12px);
+  gap: var(--space-5, 20px);
 `;
 
 function fmtTokens(n: number): string {

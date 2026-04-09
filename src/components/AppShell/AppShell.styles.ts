@@ -33,6 +33,7 @@ export const ContentMain = styled.main`
   min-height: 0;
   overflow-y: auto;
   background: var(--color-bg-primary, white);
+  padding-bottom: var(--space-8, 32px);
 
   &::-webkit-scrollbar { width: 6px; }
   &::-webkit-scrollbar-track { background: transparent; }

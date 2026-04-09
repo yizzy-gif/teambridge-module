@@ -18,6 +18,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   Eyebrow,
+  ToggleButton,
 } from 'alloy-design-system';
 import type { StatusTagStatus } from 'alloy-design-system';
 import {
@@ -145,6 +146,13 @@ const Section = styled.div`
   gap: var(--space-2, 8px);
 `;
 
+const TopRow = styled.div`
+  display: grid;
+  grid-template-columns: 3fr 7fr;
+  gap: var(--space-5, 20px);
+  align-items: flex-start;
+`;
+
 const WorkflowLink = styled.a`
   font-family: var(--font-sans, Geist, sans-serif);
   font-size: 13px;
@@ -251,6 +259,22 @@ const FullSummary = styled.p`
 
 // ── Feedback ──────────────────────────────────────────────────────────────────
 
+function ThumbsUpSVG() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 22V11M2 13V20C2 21.1046 2.89543 22 4 22H17.4262C18.907 22 20.1662 20.9197 20.3914 19.4562L21.4683 12.4562C21.7479 10.6389 20.3418 9 18.5032 9H15C14.4477 9 14 8.55228 14 8V4.46584C14 3.10399 12.896 2 11.5342 2C11.2093 2 10.915 2.1913 10.7831 2.48812L7.26394 10.4061C7.10344 10.7673 6.74532 11 6.35013 11H4C2.89543 11 2 11.8954 2 13Z" stroke="currentColor"/>
+    </svg>
+  );
+}
+
+function ThumbsDownSVG() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.0001 2V13M22.0001 9.8V5.2C22.0001 4.07989 22.0001 3.51984 21.7821 3.09202C21.5903 2.71569 21.2844 2.40973 20.908 2.21799C20.4802 2 19.9202 2 18.8001 2H8.11806C6.65658 2 5.92584 2 5.33563 2.26743C4.81545 2.50314 4.37335 2.88242 4.06129 3.36072C3.70722 3.90339 3.59611 4.62564 3.37388 6.07012L2.8508 9.47012C2.5577 11.3753 2.41114 12.3279 2.69386 13.0691C2.94199 13.7197 3.4087 14.2637 4.01398 14.6079C4.70358 15 5.66739 15 7.59499 15H8.40005C8.96011 15 9.24013 15 9.45404 15.109C9.64221 15.2049 9.79519 15.3578 9.89106 15.546C10.0001 15.7599 10.0001 16.0399 10.0001 16.6V19.5342C10.0001 20.896 11.104 22 12.4659 22C12.7907 22 13.0851 21.8087 13.217 21.5119L16.5778 13.9502C16.7306 13.6062 16.807 13.4343 16.9278 13.3082C17.0346 13.1967 17.1658 13.1115 17.311 13.0592C17.4753 13 17.6635 13 18.0398 13H18.8001C19.9202 13 20.4802 13 20.908 12.782C21.2844 12.5903 21.5903 12.2843 21.7821 11.908C22.0001 11.4802 22.0001 10.9201 22.0001 9.8Z" stroke="currentColor"/>
+    </svg>
+  );
+}
+
 interface FeedbackProps {
   value: FeedbackValue;
   onChange: (next: FeedbackValue) => void;
@@ -268,65 +292,30 @@ const FeedbackLabel = styled.span`
   color: var(--color-content-tertiary, #87919f);
 `;
 
-const ThumbBtn = styled.button<{ $active: boolean }>`
-  all: unset;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-md, 8px);
-  cursor: pointer;
-  color: ${p => p.$active ? 'var(--color-content-primary, #151515)' : 'var(--color-content-tertiary, #87919f)'};
-  background: ${p => p.$active ? 'var(--color-bg-tertiary, #eceef1)' : 'transparent'};
-  transition:
-    background var(--duration-fast, 100ms) var(--ease-default, ease),
-    color var(--duration-fast, 100ms) var(--ease-default, ease);
-  &:hover {
-    background: var(--color-bg-tertiary, #eceef1);
-    color: var(--color-content-primary, #151515);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--color-border-focus, #446cff);
-    outline-offset: 2px;
-  }
-`;
-
-function ThumbsUpIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M7 22V11M2 13v7a2 2 0 0 0 2 2h11.172a2 2 0 0 0 1.932-1.479l1.716-6.857A2 2 0 0 0 16.888 11H13V7a3 3 0 0 0-3-3H9l-2 4v14Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
-
-function ThumbsDownIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M17 2v11m5-9v7a2 2 0 0 1-2 2H8.828a2 2 0 0 1-1.932 1.479L5.18 21.336A2 2 0 0 0 7.112 13H11v-4a3 3 0 0 1 3-3h1l2-4Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
 
 function Feedback({ value, onChange }: FeedbackProps) {
   return (
     <FeedbackRow>
-      <ThumbBtn
-        $active={value === 'up'}
+      <ToggleButton
+        defaultVariant="ghost"
+        size="md"
+        iconOnly
+        selected={value === 'up'}
+        onSelectedChange={() => onChange(value === 'up' ? null : 'up')}
         aria-label="Mark as helpful"
-        aria-pressed={value === 'up'}
-        onClick={() => onChange(value === 'up' ? null : 'up')}
       >
-        <ThumbsUpIcon />
-      </ThumbBtn>
-      <ThumbBtn
-        $active={value === 'down'}
+        <ThumbsUpSVG />
+      </ToggleButton>
+      <ToggleButton
+        defaultVariant="ghost"
+        size="md"
+        iconOnly
+        selected={value === 'down'}
+        onSelectedChange={() => onChange(value === 'down' ? null : 'down')}
         aria-label="Mark as not helpful"
-        aria-pressed={value === 'down'}
-        onClick={() => onChange(value === 'down' ? null : 'down')}
       >
-        <ThumbsDownIcon />
-      </ThumbBtn>
+        <ThumbsDownSVG />
+      </ToggleButton>
     </FeedbackRow>
   );
 }
@@ -422,17 +411,21 @@ function ExecutionRow({ record, expanded, onToggle, feedback, onFeedback, maxDur
         <tr>
           <ExpandedContent colSpan={5}>
             <DetailSections>
-              <Section>
-                <Eyebrow>Workflow</Eyebrow>
-                <WorkflowLink href={record.workflow.href}>
-                  {record.workflow.name}
-                </WorkflowLink>
-              </Section>
+              <TopRow>
+                <Section>
+                  <Eyebrow>Workflow</Eyebrow>
+                  <WorkflowLink href={record.workflow.href}>
+                    {record.workflow.name}
+                  </WorkflowLink>
+                </Section>
 
-              <Section>
-                <Eyebrow>Summary of actions</Eyebrow>
-                <FullSummary>{record.outcomeSummaryFull}</FullSummary>
-              </Section>
+                <Section>
+                  <Eyebrow>Summary of actions</Eyebrow>
+                  <FullSummary>{record.outcomeSummaryFull}</FullSummary>
+                </Section>
+              </TopRow>
+
+              <hr style={{ margin: 0, border: 'none', borderTop: '1px solid var(--color-border-opaque)' }} />
 
               <Section>
                 <Eyebrow>Span details</Eyebrow>

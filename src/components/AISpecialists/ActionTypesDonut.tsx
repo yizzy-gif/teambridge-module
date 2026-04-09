@@ -1,7 +1,7 @@
 // Donut chart showing breakdown of action categories across all execution steps
 // in the selected time range. Uses the Alloy DonutChart component for the ring.
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { DonutChart } from 'alloy-design-system';
 import type { DonutChartSegment } from 'alloy-design-system';
@@ -15,10 +15,11 @@ interface ActionTypesDonutProps {
 
 // ── Category metadata ─────────────────────────────────────────────────────────
 
+// Colors match the Tag color="blue|purple|matcha" dot tokens used in the activity table
 const CATEGORY_META: { key: ActionCategory; label: string; color: string }[] = [
-  { key: 'communication', label: 'Communication', color: 'var(--Alloy-azure-500, #3b82f6)'  },
-  { key: 'data_cleanup',  label: 'Data Cleanup',  color: 'var(--Alloy-green-500, #22c55e)'  },
-  { key: 'scheduling',    label: 'Scheduling',    color: 'var(--Alloy-orange-400, #fb923c)' },
+  { key: 'communication', label: 'Communication', color: 'var(--color-blue-bg-primary)'   },
+  { key: 'data_cleanup',  label: 'Data Cleanup',  color: 'var(--color-purple-bg-primary)' },
+  { key: 'scheduling',    label: 'Scheduling',    color: 'var(--color-matcha-bg-primary)'  },
 ];
 
 // ── Styled components ─────────────────────────────────────────────────────────
@@ -62,9 +63,46 @@ const ChartBody = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: var(--space-4, 16px);
+  min-height: 0;
+`;
+
+const ChartWrap = styled.div`
+  flex: 1;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-4, 16px);
+  min-height: 0;
+  position: relative;
+`;
+
+const CenterLabel = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+`;
+
+const CenterCount = styled.span`
+  font-family: var(--font-sans, Geist, sans-serif);
+  font-size: var(--text-2xl, 24px);
+  font-weight: var(--font-weight-medium, 500);
+  line-height: 1;
+  color: var(--color-content-primary, #151515);
+`;
+
+const CenterSub = styled.span`
+  font-family: var(--font-sans, Geist, sans-serif);
+  font-size: var(--text-xs, 12px);
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--color-content-tertiary, #87919f);
 `;
 
 const Legend = styled.ul`
@@ -108,6 +146,19 @@ const LegendValue = styled.span`
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function ActionTypesDonut({ specialistId, timeRange }: ActionTypesDonutProps) {
+  const chartWrapRef = useRef<HTMLDivElement>(null);
+  const [chartSize, setChartSize] = useState(160);
+
+  useEffect(() => {
+    if (!chartWrapRef.current) return;
+    const ro = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      setChartSize(Math.floor(Math.min(width, height) * 0.85));
+    });
+    ro.observe(chartWrapRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   const { segments, legendRows, total } = useMemo(() => {
     const allRecords = MOCK_EXECUTIONS.filter(r => r.specialistId === specialistId);
     const window     = getWindow(timeRange);
@@ -146,7 +197,7 @@ export function ActionTypesDonut({ specialistId, timeRange }: ActionTypesDonutPr
     return { segments, legendRows, total };
   }, [specialistId, timeRange]);
 
-  const centerLabel = total === 0 ? 'No activity' : `${total} actions`;
+  const centerLabel = total === 0 ? 'No activity' : undefined;
 
   // For the empty state, pass a single opaque grey segment so the ring looks muted
   const chartSegments: DonutChartSegment[] = total === 0
@@ -161,12 +212,20 @@ export function ActionTypesDonut({ specialistId, timeRange }: ActionTypesDonutPr
       </CardHeader>
 
       <ChartBody>
-        <DonutChart
-          segments={chartSegments}
-          centerLabel={centerLabel}
-          showLegend={false}
-          size={200}
-        />
+        <ChartWrap ref={chartWrapRef}>
+          <DonutChart
+            segments={chartSegments}
+            centerLabel={centerLabel}
+            showLegend={false}
+            size={chartSize}
+          />
+          {total > 0 && (
+            <CenterLabel>
+              <CenterCount>{total}</CenterCount>
+              <CenterSub>Actions</CenterSub>
+            </CenterLabel>
+          )}
+        </ChartWrap>
 
         {total > 0 && (
           <Legend>
