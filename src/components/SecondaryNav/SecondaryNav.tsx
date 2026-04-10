@@ -41,6 +41,7 @@ const LIST_ITEM_SIZE_STYLE = {
   '--li-px': '0px',
   '--li-gap': '4px',
   borderRadius: '6px',
+  paddingRight: '8px',
 } as React.CSSProperties;
 
 // ── Menu sub-components ────────────────────────────────────────────────────

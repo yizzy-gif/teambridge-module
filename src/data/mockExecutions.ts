@@ -64,6 +64,25 @@ export const WORKFLOWS: Workflow[] = [
   { id: 'wf-interviews',  name: 'Interview Scheduling',    href: '/workflows/wf-interviews'  },
 ];
 
+// ── Deployments ───────────────────────────────────────────────────────────────
+
+export type DeploymentStatus = 'active' | 'paused';
+
+export interface Deployment {
+  id: string;
+  personaId: string;
+  workflow: Workflow;
+  status: DeploymentStatus;
+}
+
+export const DEPLOYMENTS: Deployment[] = [
+  { id: 'dep-001', personaId: 'persona-1', workflow: WORKFLOWS[0], status: 'active'  },
+  { id: 'dep-002', personaId: 'persona-1', workflow: WORKFLOWS[1], status: 'active'  },
+  { id: 'dep-003', personaId: 'persona-1', workflow: WORKFLOWS[2], status: 'paused'  },
+  { id: 'dep-004', personaId: 'persona-1', workflow: WORKFLOWS[3], status: 'active'  },
+  { id: 'dep-005', personaId: 'persona-1', workflow: WORKFLOWS[4], status: 'active'  },
+];
+
 // ── Mock data ─────────────────────────────────────────────────────────────────
 // Current period: Apr 1–8 2026. Prior period: Mar 25–31 2026.
 

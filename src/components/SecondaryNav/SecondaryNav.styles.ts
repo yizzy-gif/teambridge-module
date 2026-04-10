@@ -123,7 +123,7 @@ export const GroupRow = styled.button`
   align-items: center;
   width: 100%;
   min-height: 32px;
-  padding: 0;
+  padding: 0 8px 0 0;
   gap: 4px;
   border-radius: 6px;
   cursor: pointer;

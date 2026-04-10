@@ -26,6 +26,7 @@ import {
 } from './pages';
 import { AISpecialistsListPage } from './pages/AIHome/AISpecialists';
 import { AISpecialistPersonaDetail } from './pages/AIHome/AISpecialists/PersonaDetail';
+import { mockPersonas } from './data/mockPersonas';
 
 // ── Nav item definitions ──────────────────────────────────────────────────
 
@@ -301,7 +302,7 @@ const pageEntries: SecondaryNavPageEntry[] = [
   { id: 'settings', label: 'Settings' },
 ];
 
-const topNavActions: TopNavAction[] = [
+const DEFAULT_TOP_NAV_ACTIONS: TopNavAction[] = [
   { id: 'new',    label: 'New',    variant: 'secondary' },
   { id: 'invite', label: 'Invite', variant: 'primary' },
 ];
@@ -320,9 +321,15 @@ function EngagedContent({ secActiveId }: { secActiveId: string }) {
   }
 }
 
-function AIHomeContent({ secActiveId }: { secActiveId: string }) {
-  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
-
+function AIHomeContent({
+  secActiveId,
+  selectedPersonaId,
+  setSelectedPersonaId,
+}: {
+  secActiveId: string;
+  selectedPersonaId: string | null;
+  setSelectedPersonaId: (id: string | null) => void;
+}) {
   useEffect(() => {
     if (secActiveId !== 'ai-specialists') setSelectedPersonaId(null);
   }, [secActiveId]);
@@ -341,13 +348,23 @@ function AIHomeContent({ secActiveId }: { secActiveId: string }) {
   return <AIHomePage />;
 }
 
-function PageContent({ activeId, secActiveId }: { activeId: string; secActiveId: string }) {
+function PageContent({
+  activeId,
+  secActiveId,
+  selectedPersonaId,
+  setSelectedPersonaId,
+}: {
+  activeId: string;
+  secActiveId: string;
+  selectedPersonaId: string | null;
+  setSelectedPersonaId: (id: string | null) => void;
+}) {
   switch (activeId) {
     case 'home':        return <HomePage />;
     case 'engaged':     return <EngagedContent secActiveId={secActiveId} />;
     case 'inbox':       return <InboxPage />;
     case 'invoice':     return <InvoicePage />;
-    case 'ai-home':     return <AIHomeContent secActiveId={secActiveId} />;
+    case 'ai-home':     return <AIHomeContent secActiveId={secActiveId} selectedPersonaId={selectedPersonaId} setSelectedPersonaId={setSelectedPersonaId} />;
     case 'marketplace': return <MarketplacePage />;
     case 'app-tool':    return <CustomAppPage />;
     case 'add-app':     return <AddAppPage />;
@@ -368,6 +385,7 @@ export default function App() {
   const [activeId, setActiveId] = useState('home');
   const [secActiveId, setSecActiveId] = useState(APP_SEC_CONFIG['home'].defaultId);
   const [search, setSearch] = useState('');
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
 
   // Switch primary app + reset secondary selection to default
   function handleAppSelect(id: string) {
@@ -385,8 +403,21 @@ export default function App() {
   // TopNav heading: no app-level prefix (shown in SecondaryNav already)
   // — top-level item: just the item label
   // — group child: Breadcrumb "GroupName / ItemName"
+  // — persona detail: Breadcrumb "Specialists > PersonaName"
   const secMeta = lookupSecItem(activeId, secActiveId);
   const topNavHeading: React.ReactNode = (() => {
+    if (activeId === 'ai-home' && secActiveId === 'ai-specialists' && selectedPersonaId) {
+      const persona = mockPersonas.find(p => p.id === selectedPersonaId);
+      return (
+        <Breadcrumb
+          separator="chevron"
+          items={[
+            { label: 'Specialists', onClick: () => setSelectedPersonaId(null) },
+            { label: persona?.name ?? 'Persona' },
+          ]}
+        />
+      );
+    }
     if (!secMeta) return <HeadingText>{APP_LABELS[activeId] ?? activeId}</HeadingText>;
     if (secMeta.parentLabel) {
       return (
@@ -422,11 +453,16 @@ export default function App() {
       onSearchChange={setSearch}
       // TopNav — only shows current secondary selection (app shown in SecNav)
       heading={topNavHeading}
-      actions={topNavActions}
+      actions={activeId === 'ai-home' ? [] : DEFAULT_TOP_NAV_ACTIONS}
       showActivityButton
       showPonderButton
     >
-      <PageContent activeId={activeId} secActiveId={secActiveId} />
+      <PageContent
+        activeId={activeId}
+        secActiveId={secActiveId}
+        selectedPersonaId={selectedPersonaId}
+        setSelectedPersonaId={setSelectedPersonaId}
+      />
     </AppShell>
   );
 }
