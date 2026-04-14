@@ -47,11 +47,12 @@ export type SecondaryNavMenuEntry =
   | { type: 'single'; item: SecondaryNavMenuItem }
   | { type: 'group'; group: SecondaryNavMenuGroup };
 
-/** Bottom page entries — static, no active/selected state */
+/** Bottom page entries (e.g. Usage, Settings) */
 export interface SecondaryNavPageEntry {
   id: string;
   label: string;
   icon?: ReactNode;
+  isActive?: boolean;
   onClick?: () => void;
 }
 

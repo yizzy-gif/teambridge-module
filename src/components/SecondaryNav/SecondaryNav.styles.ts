@@ -187,13 +187,13 @@ export const GroupChevron = styled.div<{ $expanded: boolean }>`
 `;
 
 /**
- * Children container — no left padding so hover bg matches parent item width.
- * Text indentation is handled by each child's leadingSlot (32px spacer).
+ * Children container — indented so child labels align with the group label.
  */
 export const GroupChildren = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding-left: 32px;
 `;
 
 /** Wrapper for GroupRow + GroupChildren — keeps internal gap tight */

@@ -15,8 +15,6 @@ import {
   TextField,
   SelectField,
   TextArea,
-  SegmentedControl,
-  Tabs,
   Table,
   TableHeader,
   TableBody,
@@ -25,21 +23,18 @@ import {
   TableCell,
   CellText,
   StatusTag,
+  Tag,
 } from 'alloy-design-system';
 import { mockPersonas } from '../../../data/mockPersonas';
-import { UsageSummaryCards } from '../../../components/AISpecialists/UsageSummaryCards';
-import { UsageTrendChart } from '../../../components/AISpecialists/UsageTrendChart';
-import { SpecialistActivityTable } from '../../../components/AISpecialists/SpecialistActivityTable';
 import { MultiTagInput } from '../../../components/AISpecialists/MultiTagInput';
-import { ActionTypesDonut } from '../../../components/AISpecialists/ActionTypesDonut';
+import { PersonaUsageSection } from '../../../components/AISpecialists/PersonaUsageSection';
+import { SpecialistActivityTable } from '../../../components/AISpecialists/SpecialistActivityTable';
 import type { VoiceOption } from '../../../data/mockPersonas';
 import { DEPLOYMENTS } from '../../../data/mockExecutions';
 import type { TimeRange } from '../../../data/mockExecutions';
 
 // Role tag suggestions derived from all existing personas
 const ROLE_SUGGESTIONS = Array.from(new Set(mockPersonas.map(p => p.role)));
-
-type ActiveTab = 'usage' | 'deployments';
 
 interface AISpecialistPersonaDetailProps {
   personaId: string;
@@ -287,19 +282,6 @@ const UploadButton = styled.button`
   }
 `;
 
-/* ── Tab bar ─────────────────────────────────────────────────────────────── */
-
-/**
- * Sticky wrapper — sits at top of ContentMain (the scroll container).
- * No bleed: border stays within the page's horizontal padding.
- */
-const StickyTabBar = styled.div`
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: var(--color-bg-primary, #ffffff);
-`;
-
 /* ── Section heading ─────────────────────────────────────────────────────── */
 
 const SectionHeading = styled.div`
@@ -311,38 +293,7 @@ const SectionHeading = styled.div`
   margin-bottom: -8px;
 `;
 
-/* ── Usage tab layout ────────────────────────────────────────────────────── */
-
-const UsageSection = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5, 20px);
-`;
-
-// Two-column layout: left ~65% (stat cards + trend) / right ~35% (donut)
-const UsageColumns = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
-  gap: var(--space-5, 20px);
-  align-items: stretch;
-
-  @media (max-width: 760px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const LeftColumn = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5, 20px);
-`;
-
-const RightColumn = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-/* ── Deployments tab layout ──────────────────────────────────────────────── */
+/* ── Deployments section layout ──────────────────────────────────────────── */
 
 const DeploymentsSection = styled.div`
   display: flex;
@@ -369,13 +320,33 @@ const DeploymentsEmptyState = styled.div`
   color: var(--color-content-tertiary, #87919f);
 `;
 
-// ── Tab panel containers ───────────────────────────────────────────────────────
+/* ── Tab bar ────────────────────────────────────────────────────────────── */
 
-const TabPanel = styled.div`
+const TabBarContainer = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: var(--space-5, 20px);
-  padding-top: var(--space-6, 24px);
+  gap: var(--space-1, 4px);
+  border-bottom: 1px solid var(--color-border-secondary, #e2e4e8);
+`;
+
+const TabButton = styled.button<{ $active: boolean }>`
+  all: unset;
+  cursor: pointer;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  font-family: var(--font-sans, Geist, sans-serif);
+  font-size: 14px;
+  font-weight: ${p => (p.$active ? 600 : 400)};
+  line-height: 20px;
+  color: ${p =>
+    p.$active
+      ? 'var(--color-content-primary, #151515)'
+      : 'var(--color-content-tertiary, #87919f)'};
+  border-bottom: 2px solid
+    ${p => (p.$active ? 'var(--color-content-primary, #151515)' : 'transparent')};
+  margin-bottom: -1px;
+  transition: color 150ms ease, border-color 150ms ease;
+  &:hover {
+    color: var(--color-content-primary, #151515);
+  }
 `;
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -392,12 +363,8 @@ export function AISpecialistPersonaDetail({ personaId, onBack }: AISpecialistPer
   const [selectedVoice, setSelectedVoice] = useState<VoiceOption>(persona?.voice ?? 'alloy');
 
   const [editOpen, setEditOpen] = useState(false);
-
-  // Active tab — defaults to Usage
-  const [activeTab, setActiveTab] = useState<ActiveTab>('usage');
-
-  // Shared time range for all usage sub-sections
-  const [timeRange, setTimeRange] = useState<TimeRange>('7d');
+  const [activeTab, setActiveTab] = useState<'deployments' | 'activities'>('deployments');
+  const [activityTimeRange, setActivityTimeRange] = useState<TimeRange>('7d');
 
   // Edit form state (ephemeral until saved)
   const [editName, setEditName] = useState('');
@@ -524,65 +491,22 @@ export function AISpecialistPersonaDetail({ personaId, onBack }: AISpecialistPer
         </DialogFooter>
       </Dialog>
 
-      {/* ── Zone 2: Sticky tab bar + tab content ──────────────────────────── */}
-      <StickyTabBar>
-        <Tabs
-          value={activeTab}
-          onChange={v => setActiveTab(v as ActiveTab)}
-          variant="underline"
-          size="md"
-        >
-          <Tabs.Tab value="usage">Usage</Tabs.Tab>
-          <Tabs.Tab value="deployments">Deployments</Tabs.Tab>
-        </Tabs>
-      </StickyTabBar>
+      {/* ── Zone 2: Usage Stats & Charts ──────────────────────────────────── */}
+      <PersonaUsageSection personaId={personaId} />
 
-      {/* Usage tab */}
-      {activeTab === 'usage' && (
-        <TabPanel
-          role="tabpanel"
-          id="tab-panel-usage"
-          aria-labelledby="tab-usage"
-        >
-          <UsageSection>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3, 12px)' }}>
-              <SectionHeading style={{ margin: 0 }}>Usage</SectionHeading>
-              <SegmentedControl
-                value={timeRange}
-                onChange={v => setTimeRange(v as TimeRange)}
-                size="sm"
-              >
-                <SegmentedControl.Item value="24h">24h</SegmentedControl.Item>
-                <SegmentedControl.Item value="7d">7d</SegmentedControl.Item>
-                <SegmentedControl.Item value="30d">30d</SegmentedControl.Item>
-              </SegmentedControl>
-            </div>
+      {/* ── Zone 3: Deployments / Activities (tabbed) ────────────────────── */}
+      <DeploymentsSection>
+        <TabBarContainer>
+          <TabButton $active={activeTab === 'deployments'} onClick={() => setActiveTab('deployments')}>
+            Deployments
+          </TabButton>
+          <TabButton $active={activeTab === 'activities'} onClick={() => setActiveTab('activities')}>
+            Activities
+          </TabButton>
+        </TabBarContainer>
 
-            <UsageColumns>
-              <LeftColumn>
-                <UsageSummaryCards specialistId={personaId} timeRange={timeRange} />
-                <UsageTrendChart   specialistId={personaId} timeRange={timeRange} />
-              </LeftColumn>
-              <RightColumn>
-                <ActionTypesDonut specialistId={personaId} timeRange={timeRange} />
-              </RightColumn>
-            </UsageColumns>
-
-            <SectionHeading>Activity</SectionHeading>
-            <SpecialistActivityTable specialistId={personaId} timeRange={timeRange} />
-          </UsageSection>
-        </TabPanel>
-      )}
-
-      {/* Deployments tab */}
-      {activeTab === 'deployments' && (
-        <TabPanel
-          role="tabpanel"
-          id="tab-panel-deployments"
-          aria-labelledby="tab-deployments"
-        >
-          <DeploymentsSection>
-            <SectionHeading>Deployments</SectionHeading>
+        {activeTab === 'deployments' && (
+          <>
             {personaDeployments.length === 0 ? (
               <DeploymentsEmptyState>
                 This persona hasn't been added to any workflows yet.
@@ -592,6 +516,7 @@ export function AISpecialistPersonaDetail({ personaId, onBack }: AISpecialistPer
                 <TableHeader>
                   <TableRow hoverable={false}>
                     <TableHead>Workflow</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -602,6 +527,14 @@ export function AISpecialistPersonaDetail({ personaId, onBack }: AISpecialistPer
                         <WorkflowLink href={dep.workflow.href}>
                           <CellText>{dep.workflow.name}</CellText>
                         </WorkflowLink>
+                      </TableCell>
+                      <TableCell>
+                        <Tag
+                          size="sm"
+                          color={dep.type === 'engage' ? 'purple' : 'grey'}
+                        >
+                          {dep.type === 'engage' ? 'Engage' : 'Engage-less'}
+                        </Tag>
                       </TableCell>
                       <TableCell>
                         <StatusTag
@@ -616,9 +549,16 @@ export function AISpecialistPersonaDetail({ personaId, onBack }: AISpecialistPer
                 </TableBody>
               </Table>
             )}
-          </DeploymentsSection>
-        </TabPanel>
-      )}
+          </>
+        )}
+
+        {activeTab === 'activities' && (
+          <SpecialistActivityTable
+            specialistId={personaId}
+            timeRange={activityTimeRange}
+          />
+        )}
+      </DeploymentsSection>
     </Page>
   );
 }

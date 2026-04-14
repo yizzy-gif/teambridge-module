@@ -26,6 +26,7 @@ import {
 } from './pages';
 import { AISpecialistsListPage } from './pages/AIHome/AISpecialists';
 import { AISpecialistPersonaDetail } from './pages/AIHome/AISpecialists/PersonaDetail';
+import { UsagePage } from './pages/Usage';
 import { mockPersonas } from './data/mockPersonas';
 
 // ── Nav item definitions ──────────────────────────────────────────────────
@@ -125,7 +126,12 @@ const APP_SEC_CONFIG: Record<string, AppSecConfig> = {
       { id: 'ai-new-chat',    label: 'New Chat',      icon: <HomeLineIcon size={16} /> },
       { id: 'ai-history',     label: 'History',       icon: <ListBulletIcon size={16} /> },
       { id: 'ai-prompts',     label: 'Saved Prompts', icon: <ClipboardCheckIcon size={16} /> },
-      { id: 'ai-specialists', label: 'Specialists',   icon: <Users03Icon size={16} /> },
+      { group: {
+        id: 'ai-specialists', label: 'Specialist', icon: <Users03Icon size={16} />,
+        children: [
+          { id: 'ai-personas', label: 'Personas',  icon: <Users03Icon size={16} /> },
+        ],
+      }},
     ],
   },
   'marketplace': {
@@ -223,6 +229,7 @@ function buildMenuEntries(
   appId: string,
   secActiveId: string,
   setSecActiveId: (id: string) => void,
+  isPageActive: boolean,
 ): SecondaryNavMenuEntry[] {
   const config = APP_SEC_CONFIG[appId];
   if (!config) return [];
@@ -241,7 +248,7 @@ function buildMenuEntries(
             id: child.id,
             label: child.label,
             icon: child.icon,
-            isActive: secActiveId === child.id,
+            isActive: !isPageActive && secActiveId === child.id,
             onClick: () => setSecActiveId(child.id),
           })),
         },
@@ -253,7 +260,7 @@ function buildMenuEntries(
         id: entry.id,
         label: entry.label,
         icon: entry.icon,
-        isActive: secActiveId === entry.id,
+        isActive: !isPageActive && secActiveId === entry.id,
         onClick: () => setSecActiveId(entry.id),
       },
     };
@@ -296,11 +303,7 @@ const APP_LABELS: Record<string, string> = {
   'esign':       'E-Sign Studio',
 };
 
-// ── Static bottom page entries ────────────────────────────────────────────
-
-const pageEntries: SecondaryNavPageEntry[] = [
-  { id: 'settings', label: 'Settings' },
-];
+// (pageEntries moved inside App component to support active state)
 
 const DEFAULT_TOP_NAV_ACTIONS: TopNavAction[] = [
   { id: 'new',    label: 'New',    variant: 'secondary' },
@@ -331,10 +334,10 @@ function AIHomeContent({
   setSelectedPersonaId: (id: string | null) => void;
 }) {
   useEffect(() => {
-    if (secActiveId !== 'ai-specialists') setSelectedPersonaId(null);
+    if (secActiveId !== 'ai-personas') setSelectedPersonaId(null);
   }, [secActiveId]);
 
-  if (secActiveId === 'ai-specialists') {
+  if (secActiveId === 'ai-personas') {
     if (selectedPersonaId) {
       return (
         <AISpecialistPersonaDetail
@@ -386,12 +389,31 @@ export default function App() {
   const [secActiveId, setSecActiveId] = useState(APP_SEC_CONFIG['home'].defaultId);
   const [search, setSearch] = useState('');
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
+  const [activePageId, setActivePageId] = useState<string | null>(null);
 
   // Switch primary app + reset secondary selection to default
   function handleAppSelect(id: string) {
     setActiveId(id);
     setSecActiveId(APP_SEC_CONFIG[id]?.defaultId ?? '');
+    setActivePageId(null);
   }
+
+  // Wrapper: clicking a menu entry clears any active page entry
+  function handleSecNavClick(id: string) {
+    setSecActiveId(id);
+    setActivePageId(null);
+  }
+
+  const pageEntries: SecondaryNavPageEntry[] = [
+    {
+      id: 'usage',
+      label: 'Usage',
+      icon: <BarChart02Icon size={16} />,
+      isActive: activePageId === 'usage',
+      onClick: () => setActivePageId('usage'),
+    },
+    { id: 'settings', label: 'Settings' },
+  ];
 
   const withActive = (items: typeof PRIMARY_ITEMS): PrimaryNavItem[] =>
     items.map(item => ({
@@ -406,13 +428,14 @@ export default function App() {
   // — persona detail: Breadcrumb "Specialists > PersonaName"
   const secMeta = lookupSecItem(activeId, secActiveId);
   const topNavHeading: React.ReactNode = (() => {
-    if (activeId === 'ai-home' && secActiveId === 'ai-specialists' && selectedPersonaId) {
+    if (activePageId === 'usage') return <HeadingText>Usage</HeadingText>;
+    if (activeId === 'ai-home' && secActiveId === 'ai-personas' && selectedPersonaId) {
       const persona = mockPersonas.find(p => p.id === selectedPersonaId);
       return (
         <Breadcrumb
           separator="chevron"
           items={[
-            { label: 'Specialists', onClick: () => setSelectedPersonaId(null) },
+            { label: 'Personas', onClick: () => setSelectedPersonaId(null) },
             { label: persona?.name ?? 'Persona' },
           ]}
         />
@@ -445,7 +468,7 @@ export default function App() {
       aiItemId="ai-home"
       // SecondaryNav
       secNavHeading={APP_LABELS[activeId] ?? activeId}
-      menuEntries={buildMenuEntries(activeId, secActiveId, setSecActiveId)}
+      menuEntries={buildMenuEntries(activeId, secActiveId, handleSecNavClick, activePageId !== null)}
       pageEntries={pageEntries}
       showSecondaryNav={true}
       showSearch
@@ -453,16 +476,20 @@ export default function App() {
       onSearchChange={setSearch}
       // TopNav — only shows current secondary selection (app shown in SecNav)
       heading={topNavHeading}
-      actions={activeId === 'ai-home' ? [] : DEFAULT_TOP_NAV_ACTIONS}
+      actions={activeId === 'ai-home' || activePageId === 'usage' ? [] : DEFAULT_TOP_NAV_ACTIONS}
       showActivityButton
       showPonderButton
     >
-      <PageContent
-        activeId={activeId}
-        secActiveId={secActiveId}
-        selectedPersonaId={selectedPersonaId}
-        setSelectedPersonaId={setSelectedPersonaId}
-      />
+      {activePageId === 'usage' ? (
+        <UsagePage />
+      ) : (
+        <PageContent
+          activeId={activeId}
+          secActiveId={secActiveId}
+          selectedPersonaId={selectedPersonaId}
+          setSelectedPersonaId={setSelectedPersonaId}
+        />
+      )}
     </AppShell>
   );
 }

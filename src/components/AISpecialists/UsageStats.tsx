@@ -1,5 +1,5 @@
 // Usage statistics row for a single AI Specialist persona.
-// Renders 4 Alloy DataCards: Tokens Used, Number of Runs, Triggers, Number of Activities.
+// Renders 4 Alloy DataCards: Credits Used, Number of Runs, Triggers, Number of Activities.
 
 import React from 'react';
 import styled from 'styled-components';
@@ -37,8 +37,8 @@ export function UsageStats({ persona, dayRange = '30d' }: UsageStatsProps) {
       <DataCard
         color="blue"
         icon={<BarChart02Icon size={24} />}
-        label="Tokens Used"
-        value={fmt(Math.round(persona.tokensUsed * scale))}
+        label="Credits Used"
+        value={fmt(Math.round(persona.creditsUsed * scale))}
       />
       <DataCard
         color="purple"

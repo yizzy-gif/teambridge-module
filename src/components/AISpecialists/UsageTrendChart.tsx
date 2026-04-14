@@ -9,11 +9,14 @@ import {
   getWindow,
   filterByWindow,
 } from '../../data/mockExecutions';
-import type { TimeRange } from '../../data/mockExecutions';
+import type { TimeRange, SpecialistType, ExecutionRecord } from '../../data/mockExecutions';
 
 interface UsageTrendChartProps {
-  specialistId: string;
+  specialistId?: string | null;
   timeRange: TimeRange;
+  deploymentTypeFilter?: SpecialistType | 'all';
+  /** Pre-filtered records — when provided, specialistId & deploymentTypeFilter are ignored. */
+  records?: ExecutionRecord[];
 }
 
 const Card = styled.div`
@@ -80,9 +83,12 @@ function eachDayInRange(from: Date, to: Date): Date[] {
   return days;
 }
 
-export function UsageTrendChart({ specialistId, timeRange }: UsageTrendChartProps) {
+export function UsageTrendChart({ specialistId, timeRange, deploymentTypeFilter = 'all', records: recordsProp }: UsageTrendChartProps) {
   const { series, labels, activeDays } = useMemo(() => {
-    const allRecords = MOCK_EXECUTIONS.filter(r => r.specialistId === specialistId);
+    const allRecords = recordsProp ?? MOCK_EXECUTIONS.filter(r =>
+      (!specialistId || r.specialistId === specialistId) &&
+      (deploymentTypeFilter === 'all' || r.deploymentType === deploymentTypeFilter),
+    );
     const window = getWindow(timeRange);
     const records = filterByWindow(allRecords, window);
 
@@ -146,7 +152,7 @@ export function UsageTrendChart({ specialistId, timeRange }: UsageTrendChartProp
     ];
 
     return { series, labels, activeDays };
-  }, [specialistId, timeRange]);
+  }, [specialistId, timeRange, deploymentTypeFilter, recordsProp]);
 
   return (
     <Card>

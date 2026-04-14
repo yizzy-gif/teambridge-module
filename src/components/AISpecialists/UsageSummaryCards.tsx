@@ -19,12 +19,15 @@ import {
   computeStats,
   pctChange,
 } from '../../data/mockExecutions';
-import type { TimeRange } from '../../data/mockExecutions';
+import type { TimeRange, SpecialistType, ExecutionRecord } from '../../data/mockExecutions';
 // Success Rate now counts resolved + partial as successful (see computeStats).
 
 interface UsageSummaryCardsProps {
-  specialistId: string;
+  specialistId?: string | null;
   timeRange: TimeRange;
+  deploymentTypeFilter?: SpecialistType | 'all';
+  /** Pre-filtered records — when provided, specialistId & deploymentTypeFilter are ignored. */
+  records?: ExecutionRecord[];
 }
 
 const Grid = styled.div`
@@ -33,7 +36,7 @@ const Grid = styled.div`
   gap: var(--space-5, 20px);
 `;
 
-function fmtTokens(n: number): string {
+function fmtCredits(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
@@ -85,8 +88,11 @@ function Change({ current, prior, invertDirection = false }: ChangeProps) {
   );
 }
 
-export function UsageSummaryCards({ specialistId, timeRange }: UsageSummaryCardsProps) {
-  const allRecords = MOCK_EXECUTIONS.filter(r => r.specialistId === specialistId);
+export function UsageSummaryCards({ specialistId, timeRange, deploymentTypeFilter = 'all', records }: UsageSummaryCardsProps) {
+  const allRecords = records ?? MOCK_EXECUTIONS.filter(r =>
+    (!specialistId || r.specialistId === specialistId) &&
+    (deploymentTypeFilter === 'all' || r.deploymentType === deploymentTypeFilter),
+  );
 
   const currentWindow = getWindow(timeRange);
   const priorWindow   = getPriorWindow(timeRange);
@@ -133,10 +139,10 @@ export function UsageSummaryCards({ specialistId, timeRange }: UsageSummaryCards
       <DataCard
         color="orange"
         icon={<CoinsStacked03Icon size={24} />}
-        label="Token Usage"
-        value={fmtTokens(current.totalTokens)}
+        label="Credit Usage"
+        value={fmtCredits(current.totalCredits)}
         change={
-          <Change current={current.totalTokens} prior={prior.totalTokens} />
+          <Change current={current.totalCredits} prior={prior.totalCredits} />
         }
       />
     </Grid>

@@ -32,6 +32,8 @@ import type {
   OutcomeStatus,
   FeedbackValue,
   TimeRange,
+  SpecialistType,
+  ToolCategory,
 } from '../../data/mockExecutions';
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
@@ -77,9 +79,9 @@ const OUTCOME_STATUS_TAG: Record<OutcomeStatus, { status: StatusTagStatus; label
   error:      { status: 'error',   label: 'Error'       },
 };
 
-// ── Action category → Tag props ───────────────────────────────────────────────
+// ── Tool category → Tag props ─────────────────────────────────────────────────
 
-const ACTION_TAG_PROPS: Record<ActionCategory, { color: string; label: string }> = {
+const ACTION_TAG_PROPS: Record<ToolCategory, { color: string; label: string }> = {
   communication: { color: 'blue',   label: 'Communication' },
   data_cleanup:  { color: 'purple', label: 'Data Cleanup'  },
   scheduling:    { color: 'matcha', label: 'Scheduling'    },
@@ -326,7 +328,7 @@ function StepTimeline({ steps }: { steps: ExecutionStep[] }) {
   return (
     <Timeline aria-label="Execution steps">
       {steps.map((step, i) => {
-        const { color, label } = ACTION_TAG_PROPS[step.actionCategory];
+        const { color, label } = ACTION_TAG_PROPS[step.toolCategory];
         return (
           <TimelineItem key={i}>
             {/* Offset column */}
@@ -351,9 +353,10 @@ interface RowProps {
   feedback: FeedbackValue;
   onFeedback: (next: FeedbackValue) => void;
   maxDurationMs: number;
+  showPersonaColumn?: boolean;
 }
 
-function ExecutionRow({ record, expanded, onToggle, feedback, onFeedback, maxDurationMs }: RowProps) {
+function ExecutionRow({ record, expanded, onToggle, feedback, onFeedback, maxDurationMs, showPersonaColumn }: RowProps) {
   const { status: outcomeStatus, label: outcomeLabel } = OUTCOME_STATUS_TAG[record.outcomeStatus];
   const stepCount = record.steps.length;
   const durationPct = maxDurationMs > 0 ? (record.durationMs / maxDurationMs) * 100 : 0;
@@ -376,6 +379,13 @@ function ExecutionRow({ record, expanded, onToggle, feedback, onFeedback, maxDur
             <CellText variant="secondary">{formatTimestamp(record.timestamp)}</CellText>
           </div>
         </TableCell>
+
+        {/* Persona (aggregate view only) */}
+        {showPersonaColumn && (
+          <TableCell>
+            <CellText>{record.personaName}</CellText>
+          </TableCell>
+        )}
 
         {/* Trigger */}
         <TableCell>
@@ -409,7 +419,7 @@ function ExecutionRow({ record, expanded, onToggle, feedback, onFeedback, maxDur
 
       {expanded && (
         <tr>
-          <ExpandedContent colSpan={5}>
+          <ExpandedContent colSpan={showPersonaColumn ? 6 : 5}>
             <DetailSections>
               <TopRow>
                 <Section>
@@ -447,7 +457,7 @@ function ExecutionRow({ record, expanded, onToggle, feedback, onFeedback, maxDur
 // ── Filter options ────────────────────────────────────────────────────────────
 
 const ACTION_OPTIONS = [
-  { value: 'all',           label: 'All types'      },
+  { value: 'all',           label: 'All tools'      },
   { value: 'communication', label: 'Communication'  },
   { value: 'data_cleanup',  label: 'Data Cleanup'   },
   { value: 'scheduling',    label: 'Scheduling'     },
@@ -465,11 +475,16 @@ const OUTCOME_OPTIONS = [
 // ── Main component ────────────────────────────────────────────────────────────
 
 interface SpecialistActivityTableProps {
-  specialistId: string;
+  specialistId?: string | null;
   timeRange: TimeRange;
+  deploymentTypeFilter?: SpecialistType | 'all';
+  /** Pre-filtered records — when provided, specialistId & deploymentTypeFilter are ignored. */
+  records?: ExecutionRecord[];
+  /** Show a Persona column (used in aggregate Usage page). */
+  showPersonaColumn?: boolean;
 }
 
-export function SpecialistActivityTable({ specialistId, timeRange }: SpecialistActivityTableProps) {
+export function SpecialistActivityTable({ specialistId, timeRange, deploymentTypeFilter = 'all', records: recordsProp, showPersonaColumn }: SpecialistActivityTableProps) {
   const [actionFilter,   setActionFilter]   = useState<string>('all');
   const [outcomeFilter,  setOutcomeFilter]  = useState<string>('all');
   const [expandedId,     setExpandedId]     = useState<string | null>(null);
@@ -480,18 +495,20 @@ export function SpecialistActivityTable({ specialistId, timeRange }: SpecialistA
   // Base records filtered to the active time window
   const windowRecords = useMemo(() => {
     const window = getWindow(timeRange);
-    return filterByWindow(
-      MOCK_EXECUTIONS.filter(r => r.specialistId === specialistId),
-      window,
-    ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [specialistId, timeRange]);
+    const base = recordsProp ?? MOCK_EXECUTIONS.filter(r =>
+      (!specialistId || r.specialistId === specialistId) &&
+      (deploymentTypeFilter === 'all' || r.deploymentType === deploymentTypeFilter),
+    );
+    return filterByWindow(base, window)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [specialistId, timeRange, deploymentTypeFilter, recordsProp]);
 
   // Apply all combinable filters
   const rows = useMemo(() => {
     return windowRecords
       .filter(r =>
         actionFilter === 'all' ||
-        r.steps.some(s => s.actionCategory === actionFilter),
+        r.steps.some(s => s.toolCategory === actionFilter),
       )
       .filter(r =>
         outcomeFilter === 'all' || r.outcomeStatus === outcomeFilter,
@@ -534,6 +551,7 @@ export function SpecialistActivityTable({ specialistId, timeRange }: SpecialistA
           <TableHeader>
             <TableRow hoverable={false}>
               <TableHead>Timestamp</TableHead>
+              {showPersonaColumn && <TableHead>Persona</TableHead>}
               <TableHead>Trigger</TableHead>
               <TableHead>Actions</TableHead>
               <TableHead>Duration</TableHead>
@@ -543,7 +561,7 @@ export function SpecialistActivityTable({ specialistId, timeRange }: SpecialistA
           <TableBody>
             {rows.length === 0 ? (
               <EmptyRow>
-                <EmptyCell colSpan={5}>No activity matches the current filters.</EmptyCell>
+                <EmptyCell colSpan={showPersonaColumn ? 6 : 5}>No activity matches the current filters.</EmptyCell>
               </EmptyRow>
             ) : (
               rows.map(record => (
@@ -557,6 +575,7 @@ export function SpecialistActivityTable({ specialistId, timeRange }: SpecialistA
                   feedback={feedbackMap[record.id] ?? null}
                   onFeedback={next => handleFeedback(record.id, next)}
                   maxDurationMs={maxDurationMs}
+                  showPersonaColumn={showPersonaColumn}
                 />
               ))
             )}

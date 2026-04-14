@@ -6,17 +6,18 @@ import styled from 'styled-components';
 import { DonutChart } from 'alloy-design-system';
 import type { DonutChartSegment } from 'alloy-design-system';
 import { MOCK_EXECUTIONS, getWindow, filterByWindow } from '../../data/mockExecutions';
-import type { TimeRange, ActionCategory } from '../../data/mockExecutions';
+import type { TimeRange, ToolCategory, SpecialistType } from '../../data/mockExecutions';
 
 interface ActionTypesDonutProps {
   specialistId: string;
   timeRange: TimeRange;
+  deploymentTypeFilter?: SpecialistType | 'all';
 }
 
 // ── Category metadata ─────────────────────────────────────────────────────────
 
 // Colors match the Tag color="blue|purple|matcha" dot tokens used in the activity table
-const CATEGORY_META: { key: ActionCategory; label: string; color: string }[] = [
+const CATEGORY_META: { key: ToolCategory; label: string; color: string }[] = [
   { key: 'communication', label: 'Communication', color: 'var(--color-blue-bg-primary)'   },
   { key: 'data_cleanup',  label: 'Data Cleanup',  color: 'var(--color-purple-bg-primary)' },
   { key: 'scheduling',    label: 'Scheduling',    color: 'var(--color-matcha-bg-primary)'  },
@@ -145,7 +146,7 @@ const LegendValue = styled.span`
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ActionTypesDonut({ specialistId, timeRange }: ActionTypesDonutProps) {
+export function ActionTypesDonut({ specialistId, timeRange, deploymentTypeFilter = 'all' }: ActionTypesDonutProps) {
   const chartWrapRef = useRef<HTMLDivElement>(null);
   const [chartSize, setChartSize] = useState(160);
 
@@ -160,11 +161,14 @@ export function ActionTypesDonut({ specialistId, timeRange }: ActionTypesDonutPr
   }, []);
 
   const { segments, legendRows, total } = useMemo(() => {
-    const allRecords = MOCK_EXECUTIONS.filter(r => r.specialistId === specialistId);
+    const allRecords = MOCK_EXECUTIONS.filter(r =>
+      r.specialistId === specialistId &&
+      (deploymentTypeFilter === 'all' || r.deploymentType === deploymentTypeFilter),
+    );
     const window     = getWindow(timeRange);
     const records    = filterByWindow(allRecords, window);
 
-    const counts: Record<ActionCategory, number> = {
+    const counts: Record<ToolCategory, number> = {
       communication: 0,
       data_cleanup:  0,
       scheduling:    0,
@@ -172,7 +176,7 @@ export function ActionTypesDonut({ specialistId, timeRange }: ActionTypesDonutPr
 
     for (const record of records) {
       for (const step of record.steps) {
-        counts[step.actionCategory]++;
+        counts[step.toolCategory]++;
       }
     }
 
@@ -195,7 +199,7 @@ export function ActionTypesDonut({ specialistId, timeRange }: ActionTypesDonutPr
     }));
 
     return { segments, legendRows, total };
-  }, [specialistId, timeRange]);
+  }, [specialistId, timeRange, deploymentTypeFilter]);
 
   const centerLabel = total === 0 ? 'No activity' : undefined;
 
@@ -207,8 +211,8 @@ export function ActionTypesDonut({ specialistId, timeRange }: ActionTypesDonutPr
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Action Types</CardTitle>
-        <CardSubtitle>Breakdown by category</CardSubtitle>
+        <CardTitle>Tool Types</CardTitle>
+        <CardSubtitle>Breakdown by tool</CardSubtitle>
       </CardHeader>
 
       <ChartBody>
@@ -222,7 +226,7 @@ export function ActionTypesDonut({ specialistId, timeRange }: ActionTypesDonutPr
           {total > 0 && (
             <CenterLabel>
               <CenterCount>{total}</CenterCount>
-              <CenterSub>Actions</CenterSub>
+              <CenterSub>Tools</CenterSub>
             </CenterLabel>
           )}
         </ChartWrap>

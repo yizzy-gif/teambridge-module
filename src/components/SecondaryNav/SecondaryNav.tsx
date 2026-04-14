@@ -201,9 +201,10 @@ export function SecondaryNav({
                 </BottomItemIcon>
               }
               onClick={entry.onClick}
-              selected={false}
+              selected={entry.isActive ?? false}
               divider={false}
               size="md"
+              aria-current={entry.isActive ? 'page' : undefined}
               style={LIST_ITEM_SIZE_STYLE}
             />
           ))}
