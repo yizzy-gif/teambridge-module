@@ -497,11 +497,11 @@ export function AISpecialistPersonaDetail({ personaId, onBack }: AISpecialistPer
       {/* ── Zone 3: Deployments / Activities (tabbed) ────────────────────── */}
       <DeploymentsSection>
         <TabBarContainer>
-          <TabButton $active={activeTab === 'deployments'} onClick={() => setActiveTab('deployments')}>
-            Deployments
-          </TabButton>
           <TabButton $active={activeTab === 'activities'} onClick={() => setActiveTab('activities')}>
             Activities
+          </TabButton>
+          <TabButton $active={activeTab === 'deployments'} onClick={() => setActiveTab('deployments')}>
+            Deployments
           </TabButton>
         </TabBarContainer>
 

@@ -7,17 +7,13 @@ import {
   SegmentedControl,
   DataCard,
   ValueChangeLabel,
-  BarChart02Icon,
   CheckCircleIcon,
   Target04Icon,
   CoinsStacked03Icon,
-  MessageDotsSquareIcon,
-  ArrowCircleBrokenRightIcon,
 } from 'alloy-design-system';
 import {
   MOCK_EXECUTIONS,
   PERSONA_USAGE_META,
-  CREDIT_COST_RATE,
   getWindow,
   getPriorWindow,
   filterByWindow,
@@ -126,14 +122,11 @@ const TopBar = styled.div`
 
 const StatsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-4, 16px);
 
-  @media (max-width: 1100px) {
-    grid-template-columns: repeat(3, 1fr);
-  }
   @media (max-width: 600px) {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
   }
 `;
 
@@ -222,10 +215,8 @@ const GoalMetric = styled.div`
 `;
 
 const MetricLabel = styled.span`
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--color-content-tertiary, #87919f);
 `;
 
@@ -248,24 +239,6 @@ const MetricDelta = styled.span<{ $color: string }>`
   color: ${p => p.$color};
 `;
 
-// Radial progress
-const RadialWrap = styled.div`
-  display: flex;
-  align-items: center;
-  gap: var(--space-3, 12px);
-  padding: var(--space-4, 16px) var(--space-5, 20px);
-  border-bottom: 1px solid var(--color-border-opaque, #e8eaee);
-`;
-
-const RadialSvg = styled.svg`
-  flex-shrink: 0;
-`;
-
-const RadialInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-`;
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -364,20 +337,6 @@ export function PersonaUsageSection({ personaId }: PersonaUsageSectionProps) {
   const estimatedCost = (totalCredits / 1_000_000) * CREDIT_COST_RATE;
   const priorEstimatedCost = (priorTotalCredits / 1_000_000) * CREDIT_COST_RATE;
 
-  const cpgDelta = creditsPerGoal !== null && priorCreditsPerGoal !== null
-    ? pctChange(creditsPerGoal, priorCreditsPerGoal) : null;
-  const costDelta = pctChange(estimatedCost, priorEstimatedCost);
-
-  const cpgDeltaFmt = fmtDelta(cpgDelta, true);
-  const costDeltaFmt = fmtDelta(costDelta, true);
-  const gsrDelta = pctChange(goalSuccessRate, priorGoalSuccessRate);
-  const gsrDeltaFmt = fmtDelta(gsrDelta, false);
-
-  // Radial SVG for goal success rate
-  const radius = 28;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDash = (goalSuccessRate / 100) * circumference;
-
   return (
     <Section>
       <SectionHeading>Usage</SectionHeading>
@@ -411,116 +370,26 @@ export function PersonaUsageSection({ personaId }: PersonaUsageSectionProps) {
           change={<Change current={resolvedCurrent} prior={resolvedPrior} />}
         />
         <DataCard
-          color="purple"
-          icon={<MessageDotsSquareIcon size={24} />}
-          label="Ponder Chats & Messages"
-          value={`${ponderChats} / ${ponderMessages}`}
-          change={<Change current={ponderChats + ponderMessages} prior={priorPonderChats + priorPonderMessages} />}
-        />
-        <DataCard
           color="orange"
           icon={<CoinsStacked03Icon size={24} />}
           label="Credit Used"
           value={fmtNum(totalCredits)}
           change={<Change current={totalCredits} prior={priorTotalCredits} />}
         />
-        <DataCard
-          color="green"
-          icon={<BarChart02Icon size={24} />}
-          label="Goal Success Rate"
-          value={fmtPct(goalSuccessRate)}
-          change={<Change current={goalSuccessRate} prior={priorGoalSuccessRate} />}
-        />
-        <DataCard
-          color="blue"
-          icon={<ArrowCircleBrokenRightIcon size={24} />}
-          label="Goal Value"
-          value={goalValue !== null ? `${goalValue.toFixed(1)} goals/1k credits` : '—'}
-          change={
-            goalValue !== null && priorGoalValue !== null
-              ? <Change current={goalValue} prior={priorGoalValue} />
-              : null
-          }
-        />
       </StatsGrid>
 
-      {/* ── Two-Column Charts ───────────────────────────────────────────────── */}
-      <ChartColumns>
-        <ChartCard>
-          <div>
-            <ChartTitle>Credit Usage Over Time</ChartTitle>
-            <ChartSubtitle>Total credits consumed per day</ChartSubtitle>
-          </div>
-          {activeDays < 3 ? (
-            <EmptyState>Not enough activity yet to show trends</EmptyState>
-          ) : (
-            <CreditRangeChart data={rangeData} />
-          )}
-        </ChartCard>
-
-        <GoalPanel>
-          {/* Goal Success Rate radial */}
-          <RadialWrap>
-            <RadialSvg width="72" height="72" viewBox="0 0 72 72">
-              <circle
-                cx="36" cy="36" r={radius}
-                fill="none"
-                stroke="var(--color-border-opaque, #e8eaee)"
-                strokeWidth="6"
-              />
-              <circle
-                cx="36" cy="36" r={radius}
-                fill="none"
-                stroke="var(--color-success, #16a34a)"
-                strokeWidth="6"
-                strokeLinecap="round"
-                strokeDasharray={`${strokeDash} ${circumference}`}
-                transform="rotate(-90 36 36)"
-              />
-              <text
-                x="36" y="36"
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize="14"
-                fontWeight="600"
-                fill="var(--color-content-primary, #151515)"
-              >
-                {fmtPct(goalSuccessRate)}
-              </text>
-            </RadialSvg>
-            <RadialInfo>
-              <MetricLabel>Goal Success Rate</MetricLabel>
-              {gsrDeltaFmt && (
-                <MetricDelta $color={gsrDeltaFmt.color}>{gsrDeltaFmt.label}</MetricDelta>
-              )}
-            </RadialInfo>
-          </RadialWrap>
-
-          {/* Credits per Goal */}
-          <GoalMetric>
-            <MetricLabel>Credits per Goal</MetricLabel>
-            <MetricValueRow>
-              <MetricValue>
-                {creditsPerGoal !== null ? `${fmtNum(creditsPerGoal)} credits/goal` : '—'}
-              </MetricValue>
-              {cpgDeltaFmt && (
-                <MetricDelta $color={cpgDeltaFmt.color}>{cpgDeltaFmt.label}</MetricDelta>
-              )}
-            </MetricValueRow>
-          </GoalMetric>
-
-          {/* Estimated Cost */}
-          <GoalMetric>
-            <MetricLabel>Estimated Cost</MetricLabel>
-            <MetricValueRow>
-              <MetricValue>{fmtCost(estimatedCost)}</MetricValue>
-              {costDeltaFmt && (
-                <MetricDelta $color={costDeltaFmt.color}>{costDeltaFmt.label}</MetricDelta>
-              )}
-            </MetricValueRow>
-          </GoalMetric>
-        </GoalPanel>
-      </ChartColumns>
+      {/* ── Credit Usage Over Time — full width ─────────────────────────────── */}
+      <ChartCard>
+        <div>
+          <ChartTitle>Credit Usage Over Time</ChartTitle>
+          <ChartSubtitle>Total credits consumed per day</ChartSubtitle>
+        </div>
+        {activeDays < 3 ? (
+          <EmptyState>Not enough activity yet to show trends</EmptyState>
+        ) : (
+          <CreditRangeChart data={rangeData} />
+        )}
+      </ChartCard>
     </Section>
   );
 }

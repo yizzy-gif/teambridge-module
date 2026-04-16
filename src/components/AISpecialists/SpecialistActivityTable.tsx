@@ -89,6 +89,17 @@ function fmtOffset(ms: number): string {
   return `+${(ms / 1000).toFixed(1)}s`;
 }
 
+/** Deterministic avatar URL for a contact name. Uses pravatar.cc with a stable
+ *  numeric seed derived from the name so the same person always shows the same face. */
+function avatarUrlFor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  }
+  const seed = Math.abs(hash) % 70 + 1; // pravatar has ~70 unique photos at /img/{1..70}
+  return `https://i.pravatar.cc/48?img=${seed}`;
+}
+
 // ── Tool category → Tag props ─────────────────────────────────────────────────
 
 const ACTION_TAG_PROPS: Record<ToolCategory, { color: string; label: string }> = {
@@ -169,6 +180,16 @@ const WorkflowLink = styled.a`
   color: var(--color-content-link, #446cff);
   text-decoration: none;
   &:hover { text-decoration: underline; }
+`;
+
+// Round avatar for the conversations list — deterministic photo per contact name.
+const ContactAvatar = styled.img`
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--color-bg-tertiary, #f1f2f4);
 `;
 
 const ExpandToggle = styled.button`
@@ -491,6 +512,7 @@ function EngageExpandedDetail({ record, mainColSpan, totalCols }: { record: Enga
                           <ExpandToggle as="span" style={{ cursor: 'inherit' }}>
                             {expandedConvId === conv.id ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
                           </ExpandToggle>
+                          <ContactAvatar src={avatarUrlFor(conv.contactName)} alt="" />
                           <CellText>{conv.contactName}</CellText>
                         </div>
                       </TableCell>
@@ -596,8 +618,9 @@ interface RowProps {
 function ExecutionRow({ record, expanded, onToggle, showPersonaColumn }: RowProps) {
   const isEngage = record.deploymentType === 'engage';
   // Total column count — drives colSpans for expanded rows.
-  const totalCols = showPersonaColumn ? 5 : 4;
-  // Conversations cell spans everything right of Time, which is totalCols - 1.
+  // Columns: Time → [Persona] → Credits → Outcome
+  const totalCols = showPersonaColumn ? 4 : 3;
+  // Conversations cell spans everything right of Time.
   const mainColSpan = totalCols - 1;
 
   return (
@@ -620,21 +643,16 @@ function ExecutionRow({ record, expanded, onToggle, showPersonaColumn }: RowProp
           </TableCell>
         )}
 
-        {/* Outcome */}
-        <TableCell>
-          <OutcomeTagWrap>
-            <OutcomeCell record={record} />
-          </OutcomeTagWrap>
-        </TableCell>
-
         {/* Credits */}
         <TableCell>
           <CellText variant="secondary">{fmtCreditsComma(record.creditsUsed)}</CellText>
         </TableCell>
 
-        {/* Cost */}
-        <TableCell>
-          <CellText variant="secondary">{fmtCost(record.creditsUsed)}</CellText>
+        {/* Outcome — rightmost, right-aligned */}
+        <TableCell align="right">
+          <OutcomeTagWrap style={{ justifyContent: 'flex-end' }}>
+            <OutcomeCell record={record} />
+          </OutcomeTagWrap>
         </TableCell>
       </TableRow>
 
@@ -771,9 +789,8 @@ export function SpecialistActivityTable({ specialistId, timeRange, deploymentTyp
             <TableRow hoverable={false}>
               <TableHead>Time</TableHead>
               {showPersonaColumn && <TableHead>Persona</TableHead>}
-              <TableHead>Outcome</TableHead>
               <TableHead>Credits</TableHead>
-              <TableHead>Cost</TableHead>
+              <TableHead align="right">Outcome</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
