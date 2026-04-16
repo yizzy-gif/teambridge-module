@@ -106,8 +106,19 @@ const FilterBarWrapper = styled.div`
   flex-wrap: wrap;
 `;
 
-const TableWrapper = styled.div`
+const TableWrapper = styled.div<{ $columnCount: number }>`
   overflow: hidden;
+
+  /* Force even column widths on the outer activity table only.
+     Scoped via > table to avoid affecting the nested conversations table inside expanded rows. */
+  & > table {
+    table-layout: fixed;
+    width: 100%;
+  }
+  & > table > thead > tr > th,
+  & > table > tbody > tr > td {
+    width: ${p => 100 / p.$columnCount}%;
+  }
 `;
 
 const EmptyRow = styled.tr`
@@ -138,17 +149,6 @@ const DetailGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-4, 16px);
-`;
-
-const TwoColumnLayout = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-5, 20px);
-  align-items: start;
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-  }
 `;
 
 const DetailItem = styled.div`
@@ -191,6 +191,25 @@ const ExpandToggle = styled.button`
 
 const ExpandedContent = styled.td`
   padding: var(--space-6, 24px);
+  background: var(--color-bg-secondary, #f6f7f9);
+  border-bottom: 1px solid var(--color-border-opaque, #e8eaee);
+`;
+
+/* Split-cell variants so the right cell's left edge aligns with the Specialist column header. */
+const ExpandedMetaCell = styled.td`
+  padding: var(--space-6, 24px);
+  background: var(--color-bg-secondary, #f6f7f9);
+  vertical-align: top;
+`;
+
+const ExpandedMainCell = styled.td`
+  padding: var(--space-6, 24px) var(--space-6, 24px) var(--space-6, 24px) var(--space-5, 20px);
+  background: var(--color-bg-secondary, #f6f7f9);
+  vertical-align: top;
+`;
+
+const ExpandedFooterCell = styled.td`
+  padding: 0 var(--space-6, 24px) var(--space-6, 24px);
   background: var(--color-bg-secondary, #f6f7f9);
   border-bottom: 1px solid var(--color-border-opaque, #e8eaee);
 `;
@@ -383,9 +402,9 @@ function OutcomeCell({ record }: { record: ExecutionRecord }) {
 
   return (
     <>
-      {goalCount > 0 && <Tag variant="subtle" color="green" size="sm">{goalCount}</Tag>}
-      {noActionCount > 0 && <Tag variant="subtle" color="neutral" size="sm">{noActionCount}</Tag>}
       {inProgressCount > 0 && <Tag variant="subtle" color="blue" size="sm">{inProgressCount}</Tag>}
+      {noActionCount > 0 && <Tag variant="subtle" color="neutral" size="sm">{noActionCount}</Tag>}
+      {goalCount > 0 && <Tag variant="subtle" color="green" size="sm">{goalCount}</Tag>}
       {goalCount === 0 && noActionCount === 0 && inProgressCount === 0 && (
         <Tag variant="subtle" color="neutral" size="sm">0</Tag>
       )}
@@ -409,107 +428,114 @@ function ConversationOutcomeBadge({ outcome }: { outcome: string }) {
 }
 
 // ── Engage expanded detail ───────────────────────────────────────────────────
+// Returns two <tr> rows directly so the metadata cell spans the Time column
+// and the conversations cell spans the Specialist + Outcome + Credits + Cost
+// columns, aligning its left edge with the Specialist column header.
 
-function EngageExpandedDetail({ record }: { record: EngageExecution }) {
-  const [expandedConvs, setExpandedConvs] = useState<Set<string>>(new Set());
+function EngageExpandedDetail({ record, mainColSpan, totalCols }: { record: EngageExecution; mainColSpan: number; totalCols: number }) {
+  const [expandedConvId, setExpandedConvId] = useState<string | null>(null);
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
 
   const persona = mockPersonas.find(p => p.id === record.specialistId);
 
   const toggleConv = (id: string) => {
-    setExpandedConvs(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+    setExpandedConvId(prev => (prev === id ? null : id));
   };
 
   const reachedOut = record.conversations.map(c => c.contactName).join(', ');
 
   return (
-    <DetailSections>
-      <TwoColumnLayout>
-        {/* Left column — metadata */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4, 16px)' }}>
+    <>
+      {/* Top row — metadata cell (Time column width) + conversations cell (Specialist→Cost) */}
+      <tr>
+        <ExpandedMetaCell>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4, 16px)' }}>
+            <Section>
+              <Eyebrow>Reached out to</Eyebrow>
+              <DetailValue>{reachedOut}</DetailValue>
+            </Section>
+
+            <Section>
+              <Eyebrow>Goal</Eyebrow>
+              <FullSummary>{record.goal}</FullSummary>
+            </Section>
+
+            <Section>
+              <Eyebrow>Summary</Eyebrow>
+              <FullSummary>{record.outcomeSummaryFull}</FullSummary>
+            </Section>
+          </div>
+        </ExpandedMetaCell>
+
+        <ExpandedMainCell colSpan={mainColSpan}>
           <Section>
-            <Eyebrow>Reached out to</Eyebrow>
-            <DetailValue>{reachedOut}</DetailValue>
+            <Eyebrow>Conversations</Eyebrow>
+            <TransparentTableWrap><Table size="sm">
+              <TableHeader>
+                <TableRow hoverable={false}>
+                  <TableHead>User</TableHead>
+                  <TableHead>Outcome</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {record.conversations.map(conv => (
+                  <React.Fragment key={conv.id}>
+                    <TableRow>
+                      <TableCell>
+                        <div
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                          onClick={() => toggleConv(conv.id)}
+                          role="button"
+                          aria-expanded={expandedConvId === conv.id}
+                        >
+                          <ExpandToggle as="span" style={{ cursor: 'inherit' }}>
+                            {expandedConvId === conv.id ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
+                          </ExpandToggle>
+                          <CellText>{conv.contactName}</CellText>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <ConversationOutcomeBadge outcome={conv.outcome} />
+                      </TableCell>
+                    </TableRow>
+                    {expandedConvId === conv.id && (
+                      <tr>
+                        <td colSpan={2} style={{ padding: '0 16px 16px' }}>
+                          <ThreadViewer thread={conv.thread} />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </TableBody>
+            </Table>
+            </TransparentTableWrap>
           </Section>
+        </ExpandedMainCell>
+      </tr>
 
-          <Section>
-            <Eyebrow>Goal</Eyebrow>
-            <FullSummary>{record.goal}</FullSummary>
-          </Section>
+      {/* Footer row — system prompt + recalculate, full table width */}
+      <tr>
+        <ExpandedFooterCell colSpan={totalCols}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4, 16px)' }}>
+            <Section>
+              <CollapsibleHeader onClick={() => setShowSystemPrompt(!showSystemPrompt)}>
+                {showSystemPrompt ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
+                System Prompt
+              </CollapsibleHeader>
+              {showSystemPrompt && persona && (
+                <SystemPromptBox>{persona.configuration.instructions}</SystemPromptBox>
+              )}
+            </Section>
 
-          <Section>
-            <Eyebrow>Summary</Eyebrow>
-            <FullSummary>{record.outcomeSummaryFull}</FullSummary>
-          </Section>
-        </div>
-
-        {/* Right column — conversations */}
-        <Section>
-          <Eyebrow>Conversations</Eyebrow>
-          <TransparentTableWrap><Table size="sm">
-            <TableHeader>
-              <TableRow hoverable={false}>
-                <TableHead>User</TableHead>
-                <TableHead>Outcome</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {record.conversations.map(conv => (
-                <React.Fragment key={conv.id}>
-                  <TableRow>
-                    <TableCell>
-                      <div
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                        onClick={() => toggleConv(conv.id)}
-                        role="button"
-                        aria-expanded={expandedConvs.has(conv.id)}
-                      >
-                        <ExpandToggle as="span" style={{ cursor: 'inherit' }}>
-                          {expandedConvs.has(conv.id) ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
-                        </ExpandToggle>
-                        <CellText>{conv.contactName}</CellText>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <ConversationOutcomeBadge outcome={conv.outcome} />
-                    </TableCell>
-                  </TableRow>
-                  {expandedConvs.has(conv.id) && (
-                    <tr>
-                      <td colSpan={2} style={{ padding: '0 16px 16px' }}>
-                        <ThreadViewer thread={conv.thread} />
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))}
-            </TableBody>
-          </Table>
-          </TransparentTableWrap>
-        </Section>
-      </TwoColumnLayout>
-
-      {/* System prompt */}
-      <Section>
-        <CollapsibleHeader onClick={() => setShowSystemPrompt(!showSystemPrompt)}>
-          {showSystemPrompt ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
-          System Prompt
-        </CollapsibleHeader>
-        {showSystemPrompt && persona && (
-          <SystemPromptBox>{persona.configuration.instructions}</SystemPromptBox>
-        )}
-      </Section>
-
-      {/* Recalculate */}
-      <RecalcRow>
-        <Button size="sm" variant="secondary" onClick={() => {}}>Recalculate Outcome</Button>
-        <LastCalcText>Last calculated {formatAbsoluteTimestamp(MOCK_NOW.toISOString())}</LastCalcText>
-      </RecalcRow>
-    </DetailSections>
+            <RecalcRow>
+              <Button size="sm" variant="secondary" onClick={() => {}}>Recalculate Outcome</Button>
+              <LastCalcText>Last calculated {formatAbsoluteTimestamp(MOCK_NOW.toISOString())}</LastCalcText>
+            </RecalcRow>
+          </div>
+        </ExpandedFooterCell>
+      </tr>
+    </>
   );
 }
 
@@ -564,10 +590,15 @@ interface RowProps {
   record: ExecutionRecord;
   expanded: boolean;
   onToggle: () => void;
+  showPersonaColumn: boolean;
 }
 
-function ExecutionRow({ record, expanded, onToggle }: RowProps) {
+function ExecutionRow({ record, expanded, onToggle, showPersonaColumn }: RowProps) {
   const isEngage = record.deploymentType === 'engage';
+  // Total column count — drives colSpans for expanded rows.
+  const totalCols = showPersonaColumn ? 5 : 4;
+  // Conversations cell spans everything right of Time, which is totalCols - 1.
+  const mainColSpan = totalCols - 1;
 
   return (
     <>
@@ -582,10 +613,12 @@ function ExecutionRow({ record, expanded, onToggle }: RowProps) {
           </div>
         </TableCell>
 
-        {/* Specialist */}
-        <TableCell>
-          <CellText>{record.personaName}</CellText>
-        </TableCell>
+        {/* Persona — shown only in aggregate views */}
+        {showPersonaColumn && (
+          <TableCell>
+            <CellText>{record.personaName}</CellText>
+          </TableCell>
+        )}
 
         {/* Outcome */}
         <TableCell>
@@ -606,15 +639,22 @@ function ExecutionRow({ record, expanded, onToggle }: RowProps) {
       </TableRow>
 
       {expanded && (
-        <tr>
-          <ExpandedContent colSpan={5}>
-            {isEngage ? (
-              <EngageExpandedDetail record={record as EngageExecution} />
-            ) : (
+        isEngage ? (
+          /* Engage renders its own <tr> rows — the conversations cell spans
+             every column right of Time, structurally aligning with the
+             next column header (Persona in aggregate view, Outcome in single-persona view). */
+          <EngageExpandedDetail
+            record={record as EngageExecution}
+            mainColSpan={mainColSpan}
+            totalCols={totalCols}
+          />
+        ) : (
+          <tr>
+            <ExpandedContent colSpan={totalCols}>
               <EngagelessExpandedDetail record={record as EngagelessExecution} />
-            )}
-          </ExpandedContent>
-        </tr>
+            </ExpandedContent>
+          </tr>
+        )
       )}
     </>
   );
@@ -623,7 +663,7 @@ function ExecutionRow({ record, expanded, onToggle }: RowProps) {
 // ── Filter options ────────────────────────────────────────────────────────────
 
 const PERSONA_OPTIONS = [
-  { value: 'all', label: 'All Specialists' },
+  { value: 'all', label: 'All Personas' },
   ...mockPersonas.map(p => ({ value: p.id, label: p.name })),
 ];
 
@@ -701,7 +741,10 @@ export function SpecialistActivityTable({ specialistId, timeRange, deploymentTyp
   }, [windowRecords, personaFilter, typeFilter, outcomeFilter, activationFilter]);
 
   // Only show persona filter when not scoped to a single persona
+  // Show Persona column + filter only in aggregate views (when no specialistId is provided).
   const showPersonaFilter = !specialistId;
+  const showPersonaColumn = !specialistId;
+  const totalCols = showPersonaColumn ? 5 : 4;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3, 12px)' }}>
@@ -722,12 +765,12 @@ export function SpecialistActivityTable({ specialistId, timeRange, deploymentTyp
         </div>
       </FilterBarWrapper>
 
-      <TableWrapper>
+      <TableWrapper $columnCount={totalCols}>
         <Table size="sm">
           <TableHeader>
             <TableRow hoverable={false}>
               <TableHead>Time</TableHead>
-              <TableHead>Specialist</TableHead>
+              {showPersonaColumn && <TableHead>Persona</TableHead>}
               <TableHead>Outcome</TableHead>
               <TableHead>Credits</TableHead>
               <TableHead>Cost</TableHead>
@@ -736,7 +779,7 @@ export function SpecialistActivityTable({ specialistId, timeRange, deploymentTyp
           <TableBody>
             {rows.length === 0 ? (
               <EmptyRow>
-                <EmptyCell colSpan={5}>No activity matches the current filters.</EmptyCell>
+                <EmptyCell colSpan={totalCols}>No activity matches the current filters.</EmptyCell>
               </EmptyRow>
             ) : (
               rows.map(record => (
@@ -745,6 +788,7 @@ export function SpecialistActivityTable({ specialistId, timeRange, deploymentTyp
                   record={record}
                   expanded={expandedId === record.id}
                   onToggle={() => setExpandedId(prev => (prev === record.id ? null : record.id))}
+                  showPersonaColumn={showPersonaColumn}
                 />
               ))
             )}

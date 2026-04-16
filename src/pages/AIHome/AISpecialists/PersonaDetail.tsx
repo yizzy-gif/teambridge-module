@@ -363,7 +363,7 @@ export function AISpecialistPersonaDetail({ personaId, onBack }: AISpecialistPer
   const [selectedVoice, setSelectedVoice] = useState<VoiceOption>(persona?.voice ?? 'alloy');
 
   const [editOpen, setEditOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'deployments' | 'activities'>('deployments');
+  const [activeTab, setActiveTab] = useState<'deployments' | 'activities'>('activities');
   const [activityTimeRange, setActivityTimeRange] = useState<TimeRange>('7d');
 
   // Edit form state (ephemeral until saved)

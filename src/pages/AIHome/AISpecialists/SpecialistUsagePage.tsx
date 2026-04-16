@@ -9,7 +9,6 @@ import {
   SelectField,
   DataCard,
   ValueChangeLabel,
-  LineChart,
   BarChart02Icon,
   CheckCircleIcon,
   Target04Icon,
@@ -18,6 +17,8 @@ import {
   ArrowCircleBrokenRightIcon,
 } from 'alloy-design-system';
 import { UsageTrendChart } from '../../../components/AISpecialists/UsageTrendChart';
+import { SpecialistActivityTable } from '../../../components/AISpecialists/SpecialistActivityTable';
+import { CreditRangeChart } from '../../../components/AISpecialists/CreditRangeChart';
 import {
   MOCK_EXECUTIONS,
   PERSONA_USAGE_META,
@@ -260,6 +261,14 @@ const RadialInfo = styled.div`
   gap: 2px;
 `;
 
+const ActivitiesHeading = styled.h3`
+  margin: 0;
+  font-family: var(--font-sans, Geist, sans-serif);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-content-primary, #151515);
+`;
+
 const FilterBarWrapper = styled.div`
   display: flex;
   align-items: flex-start;
@@ -379,25 +388,29 @@ export function SpecialistUsageContent() {
   const goalValue = totalCredits > 0 ? resolvedCurrent / (totalCredits / 1000) : null;
   const priorGoalValue = priorTotalCredits > 0 ? resolvedPrior / (priorTotalCredits / 1000) : null;
 
-  // ── Credit chart data ─────────────────────────────────────────────────────
-  const { chartSeries, chartLabels, activeDays } = useMemo(() => {
-    const creditsByDay: Record<string, number> = {};
+  // ── Credit chart data (min/max credits per day) ───────────────────────────
+  const { rangeData, activeDays } = useMemo(() => {
+    const creditsByDay: Record<string, number[]> = {};
     for (const r of currentRecords) {
       const k = dayKey(new Date(r.timestamp));
-      creditsByDay[k] = (creditsByDay[k] ?? 0) + r.creditsUsed;
+      if (!creditsByDay[k]) creditsByDay[k] = [];
+      creditsByDay[k].push(r.creditsUsed);
     }
     const days = eachDayInRange(currentWindow.from, currentWindow.to);
-    const labels = days.map(dayLabel);
-    const keys = days.map(dayKey);
-    const data = keys.map(k => creditsByDay[k] ?? 0);
-    const active = data.filter(v => v > 0).length;
-    const series = [{
-      label: 'Credits',
-      data,
-      color: 'var(--Alloy-blue-500)',
-      area: true,
-    }];
-    return { chartSeries: series, chartLabels: labels, activeDays: active };
+    const rangeData = days.map(d => {
+      const k = dayKey(d);
+      const values = creditsByDay[k] ?? [];
+      if (values.length === 0) return { label: dayLabel(d), min: 0, max: 0, count: 0, hasData: false };
+      return {
+        label: dayLabel(d),
+        min: Math.min(...values),
+        max: Math.max(...values),
+        count: values.length,
+        hasData: true,
+      };
+    });
+    const active = rangeData.filter(d => d.hasData).length;
+    return { rangeData, activeDays: active };
   }, [currentRecords, timeRange]);
 
   // ── Right column metrics ──────────────────────────────────────────────────
@@ -528,15 +541,7 @@ export function SpecialistUsageContent() {
           {activeDays < 3 ? (
             <EmptyState>Not enough activity yet to show trends</EmptyState>
           ) : (
-            <LineChart
-              series={chartSeries}
-              labels={chartLabels}
-              height={200}
-              showGrid
-              showLegend={false}
-              smooth
-              yUnit=""
-            />
+            <CreditRangeChart data={rangeData} />
           )}
         </ChartCard>
 
@@ -603,6 +608,10 @@ export function SpecialistUsageContent() {
           </GoalMetric>
         </GoalPanel>
       </ChartColumns>
+
+      {/* ── Activities ──────────────────────────────────────────────────────── */}
+      <ActivitiesHeading>Activities</ActivitiesHeading>
+      <SpecialistActivityTable timeRange={timeRange} records={filteredRecords} />
 
     </ContentWrapper>
   );
