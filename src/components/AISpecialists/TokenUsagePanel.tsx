@@ -13,6 +13,7 @@ import {
   getPriorWindow,
   filterByWindow,
   pctChange,
+  countGoalsAchieved,
 } from '../../data/mockExecutions';
 import type { TimeRange, SpecialistType, ExecutionRecord } from '../../data/mockExecutions';
 
@@ -236,7 +237,7 @@ export function CreditUsagePanel({
 
     function compute(records: typeof allRecords) {
       const totalCredits  = records.reduce((s, r) => s + r.creditsUsed, 0);
-      const resolvedRuns = records.filter(r => r.outcomeStatus === 'resolved').length;
+      const resolvedRuns = countGoalsAchieved(records);
       const creditsPerResolved = resolvedRuns > 0 ? totalCredits / resolvedRuns : null;
       const estimatedCost = (totalCredits / 1_000_000) * CREDIT_COST_RATE;
       return { totalCredits, resolvedRuns, creditsPerResolved, estimatedCost };

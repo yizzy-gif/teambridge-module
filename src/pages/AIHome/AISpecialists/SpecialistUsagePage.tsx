@@ -18,7 +18,6 @@ import {
   ArrowCircleBrokenRightIcon,
 } from 'alloy-design-system';
 import { UsageTrendChart } from '../../../components/AISpecialists/UsageTrendChart';
-import { SpecialistActivityTable } from '../../../components/AISpecialists/SpecialistActivityTable';
 import {
   MOCK_EXECUTIONS,
   PERSONA_USAGE_META,
@@ -28,9 +27,10 @@ import {
   getPriorWindow,
   filterByWindow,
   pctChange,
+  countGoalsAchieved,
+  countGoalsTotal,
 } from '../../../data/mockExecutions';
-import { mockPersonas } from '../../../data/mockPersonas';
-import type { TimeRange, ExecutionRecord } from '../../../data/mockExecutions';
+import type { TimeRange, ExecutionRecord, EngagelessExecution, EngageExecution } from '../../../data/mockExecutions';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -117,7 +117,7 @@ const ContentWrapper = styled.div`
 const TopBar = styled.div`
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-3, 12px);
 `;
@@ -260,14 +260,6 @@ const RadialInfo = styled.div`
   gap: 2px;
 `;
 
-const SectionHeading = styled.div`
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--color-content-tertiary, #87919f);
-`;
-
 const FilterBarWrapper = styled.div`
   display: flex;
   align-items: flex-start;
@@ -276,11 +268,6 @@ const FilterBarWrapper = styled.div`
 `;
 
 // ── Filter option builders ───────────────────────────────────────────────────
-
-const PERSONA_OPTIONS = [
-  { value: 'all', label: 'All Personas' },
-  ...mockPersonas.map(p => ({ value: p.id, label: p.name })),
-];
 
 const SPECIALIST_TYPE_OPTIONS = [
   { value: 'all',         label: 'All Types'    },
@@ -294,32 +281,50 @@ const WORKFLOW_OPTIONS = [
 ];
 
 const OUTCOME_OPTIONS = [
-  { value: 'all',        label: 'All Outcomes' },
-  { value: 'resolved',   label: 'Resolved'     },
-  { value: 'unresolved', label: 'Unresolved'   },
-  { value: 'escalated',  label: 'Escalated'    },
-  { value: 'partial',    label: 'Partial'      },
-  { value: 'error',      label: 'Error'        },
+  { value: 'all',         label: 'All Outcomes' },
+  { value: 'success',     label: 'Success'      },
+  { value: 'in_progress', label: 'In Progress'  },
+];
+
+const ACTIVATION_OPTIONS = [
+  { value: 'all',      label: 'All Sources' },
+  { value: 'workflow', label: 'Workflow'     },
+  { value: 'ponder',   label: 'Ponder'      },
 ];
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function SpecialistUsageContent() {
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
-  const [personaFilter, setPersonaFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [workflowFilter, setWorkflowFilter] = useState('all');
   const [outcomeFilter, setOutcomeFilter] = useState('all');
+  const [activationFilter, setActivationFilter] = useState('all');
 
   // Central filtered records — drives all child components
   const filteredRecords = useMemo<ExecutionRecord[]>(() => {
-    return MOCK_EXECUTIONS.filter(r =>
-      (personaFilter === 'all' || r.specialistId === personaFilter) &&
-      (typeFilter === 'all' || r.deploymentType === typeFilter) &&
-      (workflowFilter === 'all' || r.workflow.id === workflowFilter) &&
-      (outcomeFilter === 'all' || r.outcomeStatus === outcomeFilter),
-    );
-  }, [personaFilter, typeFilter, workflowFilter, outcomeFilter]);
+    return MOCK_EXECUTIONS.filter(r => {
+      if (typeFilter !== 'all' && r.deploymentType !== typeFilter) return false;
+      if (workflowFilter !== 'all' && r.workflow.id !== workflowFilter) return false;
+      if (activationFilter !== 'all' && r.activatedBy !== activationFilter) return false;
+      if (outcomeFilter !== 'all') {
+        if (r.deploymentType === 'engage_less') {
+          const el = r as EngagelessExecution;
+          if (outcomeFilter === 'success' && el.status !== 'success') return false;
+          if (outcomeFilter === 'in_progress' && el.status !== 'in_progress') return false;
+        } else {
+          const eg = r as EngageExecution;
+          if (outcomeFilter === 'success' && !eg.conversations.some(c => c.outcome === 'goal_achieved')) return false;
+          if (outcomeFilter === 'in_progress') {
+            const hasGoal = eg.conversations.some(c => c.outcome === 'goal_achieved');
+            const hasInProgress = eg.conversations.some(c => c.outcome === 'in_progress');
+            if (hasGoal || !hasInProgress) return false;
+          }
+        }
+      }
+      return true;
+    });
+  }, [typeFilter, workflowFilter, outcomeFilter, activationFilter]);
 
   const currentWindow = getWindow(timeRange);
   const priorWindow = getPriorWindow(timeRange);
@@ -343,10 +348,10 @@ export function SpecialistUsageContent() {
     ? (priorTriggersExecuted / priorTriggersReceived) * 100 : 0;
 
   // ── Goal Achieved ─────────────────────────────────────────────────────────
-  const resolvedCurrent = currentRecords.filter(r => r.outcomeStatus === 'resolved').length;
-  const resolvedPrior = priorRecords.filter(r => r.outcomeStatus === 'resolved').length;
-  const totalCurrent = currentRecords.length;
-  const totalPrior = priorRecords.length;
+  const resolvedCurrent = countGoalsAchieved(currentRecords);
+  const resolvedPrior = countGoalsAchieved(priorRecords);
+  const totalCurrent = countGoalsTotal(currentRecords);
+  const totalPrior = countGoalsTotal(priorRecords);
 
   // ── Ponder Chats & Messages ───────────────────────────────────────────────
   const ponderChats = currentRecords.filter(r =>
@@ -418,6 +423,40 @@ export function SpecialistUsageContent() {
   return (
     <ContentWrapper>
       <TopBar>
+        <FilterBarWrapper>
+          <div style={{ width: 160 }}>
+            <SelectField
+              size="sm"
+              options={SPECIALIST_TYPE_OPTIONS}
+              value={typeFilter}
+              onChange={setTypeFilter}
+            />
+          </div>
+          <div style={{ width: 180 }}>
+            <SelectField
+              size="sm"
+              options={WORKFLOW_OPTIONS}
+              value={workflowFilter}
+              onChange={setWorkflowFilter}
+            />
+          </div>
+          <div style={{ width: 160 }}>
+            <SelectField
+              size="sm"
+              options={OUTCOME_OPTIONS}
+              value={outcomeFilter}
+              onChange={setOutcomeFilter}
+            />
+          </div>
+          <div style={{ width: 150 }}>
+            <SelectField
+              size="sm"
+              options={ACTIVATION_OPTIONS}
+              value={activationFilter}
+              onChange={setActivationFilter}
+            />
+          </div>
+        </FilterBarWrapper>
         <SegmentedControl
           value={timeRange}
           onChange={(v: string) => setTimeRange(v as TimeRange)}
@@ -565,49 +604,6 @@ export function SpecialistUsageContent() {
         </GoalPanel>
       </ChartColumns>
 
-      {/* ── Activity Section ─────────────────────────────────────────────────── */}
-      <SectionHeading>Activity</SectionHeading>
-
-      <FilterBarWrapper>
-        <div style={{ width: 160 }}>
-          <SelectField
-            size="sm"
-            options={PERSONA_OPTIONS}
-            value={personaFilter}
-            onChange={setPersonaFilter}
-          />
-        </div>
-        <div style={{ width: 160 }}>
-          <SelectField
-            size="sm"
-            options={SPECIALIST_TYPE_OPTIONS}
-            value={typeFilter}
-            onChange={setTypeFilter}
-          />
-        </div>
-        <div style={{ width: 180 }}>
-          <SelectField
-            size="sm"
-            options={WORKFLOW_OPTIONS}
-            value={workflowFilter}
-            onChange={setWorkflowFilter}
-          />
-        </div>
-        <div style={{ width: 160 }}>
-          <SelectField
-            size="sm"
-            options={OUTCOME_OPTIONS}
-            value={outcomeFilter}
-            onChange={setOutcomeFilter}
-          />
-        </div>
-      </FilterBarWrapper>
-
-      <SpecialistActivityTable
-        timeRange={timeRange}
-        records={filteredRecords}
-        showPersonaColumn
-      />
     </ContentWrapper>
   );
 }

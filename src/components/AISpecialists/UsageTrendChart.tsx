@@ -1,4 +1,4 @@
-// Stacked bar chart: daily run volume broken out by outcome status.
+// Stacked bar chart: daily run volume broken out by Success / In Progress / Incomplete.
 // Falls back to an empty state when fewer than 3 days have any activity.
 
 import React, { useMemo } from 'react';
@@ -9,7 +9,7 @@ import {
   getWindow,
   filterByWindow,
 } from '../../data/mockExecutions';
-import type { TimeRange, SpecialistType, ExecutionRecord } from '../../data/mockExecutions';
+import type { TimeRange, SpecialistType, ExecutionRecord, EngagelessExecution, EngageExecution } from '../../data/mockExecutions';
 
 interface UsageTrendChartProps {
   specialistId?: string | null;
@@ -83,6 +83,19 @@ function eachDayInRange(from: Date, to: Date): Date[] {
   return days;
 }
 
+/** Classify a record into a chart segment. */
+function classifyRecord(r: ExecutionRecord): 'success' | 'in_progress' | 'incomplete' {
+  if (r.deploymentType === 'engage_less') {
+    return (r as EngagelessExecution).status;
+  }
+  const eg = r as EngageExecution;
+  const hasGoal = eg.conversations.some(c => c.outcome === 'goal_achieved');
+  if (hasGoal) return 'success';
+  const hasInProgress = eg.conversations.some(c => c.outcome === 'in_progress');
+  if (hasInProgress) return 'in_progress';
+  return 'incomplete';
+}
+
 export function UsageTrendChart({ specialistId, timeRange, deploymentTypeFilter = 'all', records: recordsProp }: UsageTrendChartProps) {
   const { series, labels, activeDays } = useMemo(() => {
     const allRecords = recordsProp ?? MOCK_EXECUTIONS.filter(r =>
@@ -92,22 +105,19 @@ export function UsageTrendChart({ specialistId, timeRange, deploymentTypeFilter 
     const window = getWindow(timeRange);
     const records = filterByWindow(allRecords, window);
 
-    // Bucket counts by calendar day and outcome status
+    // Bucket counts by calendar day and outcome segment
     type DayBuckets = Record<string, number>;
-    const resolvedByDay:   DayBuckets = {};
-    const partialByDay:    DayBuckets = {};
-    const escalatedByDay:  DayBuckets = {};
-    const unresolvedByDay: DayBuckets = {};
-    const errorByDay:      DayBuckets = {};
+    const successByDay:        DayBuckets = {};
+    const inProgressByDay:     DayBuckets = {};
+    const notSuccessfulByDay:  DayBuckets = {};
 
     for (const r of records) {
       const k = dayKey(new Date(r.timestamp));
-      switch (r.outcomeStatus) {
-        case 'resolved':   resolvedByDay[k]   = (resolvedByDay[k]   ?? 0) + 1; break;
-        case 'partial':    partialByDay[k]    = (partialByDay[k]    ?? 0) + 1; break;
-        case 'escalated':  escalatedByDay[k]  = (escalatedByDay[k]  ?? 0) + 1; break;
-        case 'unresolved': unresolvedByDay[k] = (unresolvedByDay[k] ?? 0) + 1; break;
-        case 'error':      errorByDay[k]      = (errorByDay[k]      ?? 0) + 1; break;
+      const segment = classifyRecord(r);
+      switch (segment) {
+        case 'success':        successByDay[k]       = (successByDay[k]       ?? 0) + 1; break;
+        case 'in_progress':    inProgressByDay[k]    = (inProgressByDay[k]    ?? 0) + 1; break;
+        case 'incomplete': notSuccessfulByDay[k] = (notSuccessfulByDay[k] ?? 0) + 1; break;
       }
     }
 
@@ -116,38 +126,26 @@ export function UsageTrendChart({ specialistId, timeRange, deploymentTypeFilter 
     const keys   = days.map(dayKey);
 
     const activeDays = keys.filter(k =>
-      (resolvedByDay[k] ?? 0) +
-      (partialByDay[k]  ?? 0) +
-      (escalatedByDay[k]  ?? 0) +
-      (unresolvedByDay[k] ?? 0) +
-      (errorByDay[k]    ?? 0) > 0,
+      (successByDay[k] ?? 0) +
+      (inProgressByDay[k]  ?? 0) +
+      (notSuccessfulByDay[k] ?? 0) > 0,
     ).length;
 
     const series = [
       {
-        label: 'Resolved',
-        data:  keys.map(k => resolvedByDay[k]   ?? 0),
+        label: 'Success',
+        data:  keys.map(k => successByDay[k]       ?? 0),
         color: 'var(--Alloy-green-500)',
       },
       {
-        label: 'Partial',
-        data:  keys.map(k => partialByDay[k]    ?? 0),
-        color: 'var(--Alloy-azure-400)',
-      },
-      {
-        label: 'Escalated',
-        data:  keys.map(k => escalatedByDay[k]  ?? 0),
+        label: 'In Progress',
+        data:  keys.map(k => inProgressByDay[k]    ?? 0),
         color: 'var(--Alloy-orange-400)',
       },
       {
-        label: 'Unresolved',
-        data:  keys.map(k => unresolvedByDay[k] ?? 0),
-        color: 'var(--Alloy-red-400)',
-      },
-      {
-        label: 'Error',
-        data:  keys.map(k => errorByDay[k]      ?? 0),
-        color: 'var(--Alloy-red-600)',
+        label: 'Incomplete',
+        data:  keys.map(k => notSuccessfulByDay[k] ?? 0),
+        color: 'var(--Alloy-neutral-300)',
       },
     ];
 

@@ -23,6 +23,8 @@ import {
   getPriorWindow,
   filterByWindow,
   pctChange,
+  countGoalsAchieved,
+  countGoalsTotal,
 } from '../../data/mockExecutions';
 import type { TimeRange, ExecutionRecord } from '../../data/mockExecutions';
 
@@ -297,10 +299,10 @@ export function PersonaUsageSection({ personaId }: PersonaUsageSectionProps) {
     : 0;
 
   // ── Goal Achieved ─────────────────────────────────────────────────────────
-  const resolvedCurrent = currentRecords.filter(r => r.outcomeStatus === 'resolved').length;
-  const resolvedPrior = priorRecords.filter(r => r.outcomeStatus === 'resolved').length;
-  const totalCurrent = currentRecords.length;
-  const totalPrior = priorRecords.length;
+  const resolvedCurrent = countGoalsAchieved(currentRecords);
+  const resolvedPrior = countGoalsAchieved(priorRecords);
+  const totalCurrent = countGoalsTotal(currentRecords);
+  const totalPrior = countGoalsTotal(priorRecords);
 
   // ── Ponder Chats & Messages ───────────────────────────────────────────────
   const ponderChats = currentRecords.filter(r =>
