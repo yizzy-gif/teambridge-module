@@ -28,6 +28,8 @@ import { AISpecialistsListPage } from './pages/AIHome/AISpecialists';
 import { AISpecialistPersonaDetail } from './pages/AIHome/AISpecialists/PersonaDetail';
 import { UsagePage } from './pages/Usage';
 import { mockPersonas } from './data/mockPersonas';
+import { useHashSync } from './nav/hashSync';
+import type { MobileModuleGroup } from './components/AppShell/MobileShell';
 
 // ── Nav item definitions ──────────────────────────────────────────────────
 
@@ -391,11 +393,40 @@ export default function App() {
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
   const [activePageId, setActivePageId] = useState<string | null>(null);
 
+  // Per-module memory of the last-visited sub-section (mobile-only
+  // behavior — desktop still resets to defaultId when switching apps).
+  const [lastSecByModule, setLastSecByModule] = useState<Record<string, string>>({});
+
+  // Keep the sub-section memory up to date whenever the user navigates
+  // within a module.
+  useEffect(() => {
+    if (!secActiveId) return;
+    setLastSecByModule(prev => (prev[activeId] === secActiveId ? prev : { ...prev, [activeId]: secActiveId }));
+  }, [activeId, secActiveId]);
+
+  // URL-hash sync — deep links like #ai-home/ai-personas/persona/erin
+  // survive refresh on both mobile and desktop.
+  useHashSync(
+    { activeId, secActiveId, selectedPersonaId, activePageId },
+    { setActiveId, setSecActiveId, setSelectedPersonaId, setActivePageId },
+  );
+
   // Switch primary app + reset secondary selection to default
   function handleAppSelect(id: string) {
     setActiveId(id);
     setSecActiveId(APP_SEC_CONFIG[id]?.defaultId ?? '');
     setActivePageId(null);
+  }
+
+  // Mobile-only: switch primary app and restore its last-visited sub-
+  // section (falling back to defaultId, then to the first menu entry).
+  function handleMobileNavigate(id: string) {
+    const remembered = lastSecByModule[id];
+    const fallback = APP_SEC_CONFIG[id]?.defaultId ?? '';
+    setActiveId(id);
+    setSecActiveId(remembered ?? fallback);
+    setActivePageId(null);
+    setSelectedPersonaId(null);
   }
 
   // Wrapper: clicking a menu entry clears any active page entry
@@ -456,6 +487,24 @@ export default function App() {
     return <HeadingText>{secMeta.label}</HeadingText>;
   })();
 
+  // Mobile breadcrumb labels — same logic as topNavHeading but plain
+  // strings, suitable for the ellipsis-truncated BreadcrumbButton.
+  const mobilePrimaryLabel = activePageId === 'usage' ? 'Usage' : (APP_LABELS[activeId] ?? activeId);
+  const mobileSecondaryLabel = activePageId === 'usage'
+    ? undefined
+    : secMeta
+      ? (secMeta.parentLabel ? `${secMeta.parentLabel} / ${secMeta.label}` : secMeta.label)
+      : undefined;
+
+  // Module catalog for PrimarySheet + ModuleDrawer. Groups mirror the
+  // three-tier layout of the desktop PrimaryNav (main / tools /
+  // bottom) so users see the same structure in both chromes.
+  const mobileModuleGroups: MobileModuleGroup[] = [
+    { id: 'main',   label: 'Workspace', items: withActive(PRIMARY_ITEMS) },
+    { id: 'tools',  label: 'Tools',     items: withActive(TOOL_ITEMS) },
+    { id: 'bottom', label: 'Apps',      items: withActive(BOTTOM_ITEMS) },
+  ];
+
   return (
     <AppShell
       // PrimaryNav
@@ -479,6 +528,18 @@ export default function App() {
       actions={activeId === 'ai-home' || activePageId === 'usage' ? [] : DEFAULT_TOP_NAV_ACTIONS}
       showActivityButton
       showPonderButton
+      // Mobile chrome opt-in
+      mobileNav={{
+        activeId,
+        secActiveId,
+        activePageId,
+        selectedPersonaId,
+        moduleGroups: mobileModuleGroups,
+        primaryLabel: mobilePrimaryLabel,
+        secondaryLabel: mobileSecondaryLabel,
+        onMobileNavigate: handleMobileNavigate,
+        onSelectPersona: setSelectedPersonaId,
+      }}
     >
       {activePageId === 'usage' ? (
         <UsagePage />

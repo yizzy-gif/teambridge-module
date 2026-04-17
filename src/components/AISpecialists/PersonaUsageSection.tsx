@@ -240,6 +240,43 @@ const MetricDelta = styled.span<{ $color: string }>`
   color: ${p => p.$color};
 `;
 
+// Stat-card badge treatment — soft AI-gradient wash on the background, full
+// AI-gradient stroke on the icon (via the <StatBadgeGradientDefs /> SVG).
+const GradientBadgeDataCard = styled(DataCard)<{ $variant?: 'ai' }>`
+  & > div[aria-hidden='true'] {
+    background: linear-gradient(
+      to right,
+      rgba(140, 79, 226, 0.16),
+      rgba(68, 108, 255, 0.16)
+    );
+    color: transparent;
+  }
+  & > div[aria-hidden='true'] svg path,
+  & > div[aria-hidden='true'] svg circle,
+  & > div[aria-hidden='true'] svg rect {
+    stroke: url(#ai-gradient-stroke);
+  }
+`;
+
+/** Hidden SVG def providing the AI gradient for `stroke: url(#...)` refs. */
+function StatBadgeGradientDefs() {
+  return (
+    <svg
+      width="0"
+      height="0"
+      style={{ position: 'absolute', width: 0, height: 0 }}
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id="ai-gradient-stroke" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#8c4fe2" />
+          <stop offset="100%" stopColor="#446cff" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -340,6 +377,7 @@ export function PersonaUsageSection({ personaId }: PersonaUsageSectionProps) {
 
   return (
     <Section>
+      <StatBadgeGradientDefs />
       <TopBar>
         <SectionHeading>Usage</SectionHeading>
         <SegmentedControl
@@ -355,22 +393,22 @@ export function PersonaUsageSection({ personaId }: PersonaUsageSectionProps) {
 
       {/* ── Stat Cards ──────────────────────────────────────────────────────── */}
       <StatsGrid>
-        <DataCard
-          color="green"
+        <GradientBadgeDataCard
+          $variant="ai"
           icon={<Target04Icon size={24} />}
           label="Specialist Activated"
           value={`${meta?.triggersExecuted ?? 0} / ${meta?.triggersReceived ?? 0}`}
           change={<Change current={meta?.triggersExecuted ?? 0} prior={priorMeta?.triggersExecuted ?? 0} />}
         />
-        <DataCard
-          color="blue"
+        <GradientBadgeDataCard
+          $variant="ai"
           icon={<CheckCircleIcon size={24} />}
           label="Goal Achieved"
           value={`${resolvedCurrent} / ${totalCurrent}`}
           change={<Change current={resolvedCurrent} prior={resolvedPrior} />}
         />
-        <DataCard
-          color="orange"
+        <GradientBadgeDataCard
+          $variant="ai"
           icon={<CoinsStacked03Icon size={24} />}
           label="Credit Used"
           value={fmtNum(totalCredits)}

@@ -15,9 +15,11 @@ import {
   Tag,
   StatusTag,
   SelectField,
+  CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   Eyebrow,
+  RefreshCw04Icon,
   Button,
 } from 'alloy-design-system';
 import {
@@ -411,8 +413,8 @@ function ThreadViewer({ thread }: { thread: ConversationMessage[] }) {
 function OutcomeCell({ record }: { record: ExecutionRecord }) {
   if (record.deploymentType === 'engage_less') {
     const r = record as EngagelessExecution;
-    if (r.status === 'success') return <Tag variant="subtle" color="green" size="sm">✓</Tag>;
-    if (r.status === 'in_progress') return <Tag variant="subtle" color="blue" size="sm">⟳</Tag>;
+    if (r.status === 'success') return <Tag variant="subtle" color="green" size="sm"><CheckIcon size={12} /></Tag>;
+    if (r.status === 'in_progress') return <Tag variant="subtle" color="neutral" size="sm"><RefreshCw04Icon size={12} /></Tag>;
     return null; // incomplete — blank
   }
 

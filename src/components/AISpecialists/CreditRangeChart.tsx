@@ -44,17 +44,16 @@ const AxisLabel = styled.text`
               y 620ms cubic-bezier(0.77, 0, 0.175, 1);
 `;
 
-// AI gradient stops — mirrors var(--gradient-ai) (135deg: #8c4fe2 → #446cff → #1edfde)
+// AI gradient stops — purple → blue slice of var(--gradient-ai) (teal omitted)
 const AI_STOP_1 = '#8c4fe2';
 const AI_STOP_2 = '#446cff';
-const AI_STOP_3 = '#1edfde';
 
 const StepPath = styled.path`
   fill: none;
   stroke: url(#chart-stroke);
   stroke-width: 2.5;
-  stroke-linejoin: round;
-  stroke-linecap: round;
+  stroke-linejoin: miter;
+  stroke-linecap: butt;
 `;
 
 const FillBar = styled.rect`
@@ -201,10 +200,13 @@ export function CreditRangeChart({ data, height = 220 }: CreditRangeChartProps) 
   const fromData = animProgress < 1 ? fromDataRef.current : data;
 
   // ── Layout ────────────────────────────────────────────────────────────────
-  const padL = 48;
-  const padR = 16;
-  const padT = 12;
-  const padB = 32;
+  // Small left gutter so y-axis labels (anchored at the card's left edge)
+  // don't overlap the first bar. Labels still float above each gridline.
+  // Tight bottom so x-axis labels sit against the card's bottom edge.
+  const padL = 44;
+  const padR = 0;
+  const padT = 20;
+  const padB = 20;
   const innerW = Math.max(width - padL - padR, 1);
   const innerH = height - padT - padB;
 
@@ -271,25 +273,25 @@ export function CreditRangeChart({ data, height = 220 }: CreditRangeChartProps) 
     <ChartWrap ref={wrapRef} $height={height}>
       <ChartSvg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
         <defs>
-          {/* Vertical AI gradient used for the top cap line. */}
+          {/* Vertical AI gradient (purple → blue) for the top cap line. */}
           <linearGradient id="chart-stroke" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={AI_STOP_1} />
-            <stop offset="50%" stopColor={AI_STOP_2} />
-            <stop offset="100%" stopColor={AI_STOP_3} />
+            <stop offset="100%" stopColor={AI_STOP_2} />
           </linearGradient>
-          {/* Same AI gradient, softened to a faded wash for the bar fills. */}
+          {/* AI gradient for bar fills — soft 30% purple at the top fading
+              to fully transparent at the bottom (per-bar). */}
           <linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={AI_STOP_1} stopOpacity="0.28" />
-            <stop offset="50%" stopColor={AI_STOP_2} stopOpacity="0.22" />
-            <stop offset="100%" stopColor={AI_STOP_3} stopOpacity="0.18" />
+            <stop offset="0%" stopColor={AI_STOP_1} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={AI_STOP_2} stopOpacity="0" />
           </linearGradient>
         </defs>
 
-        {/* Y-axis gridlines + labels (smooth transition on tick positions) */}
+        {/* Y-axis gridlines span the full chart; labels sit in the left
+            gutter at the card's edge so they don't overlap the first bar. */}
         {ticks.map((t, i) => (
           <g key={`t-${i}`}>
-            <GridLine x1={padL} x2={width - padR} y1={yFor(t)} y2={yFor(t)} />
-            <AxisLabel x={padL - 8} y={yFor(t) + 4} textAnchor="end">
+            <GridLine x1={0} x2={width - padR} y1={yFor(t)} y2={yFor(t)} />
+            <AxisLabel x={0} y={yFor(t) - 6} textAnchor="start">
               {fmtCreditsAxis(t)}
             </AxisLabel>
           </g>
@@ -321,19 +323,32 @@ export function CreditRangeChart({ data, height = 220 }: CreditRangeChartProps) 
           />
         ))}
 
-        {/* X-axis day labels — sparse for dense ranges */}
+        {/* X-axis day labels — sparse for dense ranges. Edge labels are
+            anchored to the chart edges so the first/last label can't spill
+            past the card when the viewport is narrow. */}
         {(() => {
           const minSpacingPx = 45;
           const step = Math.max(1, Math.ceil(minSpacingPx / labelsBandW));
+          const lastIdx = data.length - 1;
           return data.map((d, i) => {
-            const isEdge = i === 0 || i === data.length - 1;
+            const isFirst = i === 0;
+            const isLast = i === lastIdx;
+            const isEdge = isFirst || isLast;
             if (!isEdge && i % step !== 0) return null;
+
+            const x = isFirst
+              ? padL
+              : isLast
+                ? width - padR
+                : labelsCenterFor(i);
+            const anchor = isFirst ? 'start' : isLast ? 'end' : 'middle';
+
             return (
               <AxisLabel
                 key={`xl-${i}`}
-                x={labelsCenterFor(i)}
+                x={x}
                 y={height - padB + 18}
-                textAnchor="middle"
+                textAnchor={anchor}
               >
                 {d.label}
               </AxisLabel>
