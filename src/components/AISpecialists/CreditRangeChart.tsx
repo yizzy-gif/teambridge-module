@@ -44,20 +44,22 @@ const AxisLabel = styled.text`
               y 620ms cubic-bezier(0.77, 0, 0.175, 1);
 `;
 
+const CHART_ACCENT = 'var(--color-purple-bg-primary, #6366f1)';
+
 const StepPath = styled.path`
   fill: none;
-  stroke: var(--color-content-primary, #151515);
-  stroke-width: 3;
+  stroke: ${CHART_ACCENT};
+  stroke-width: 2.5;
   stroke-linejoin: round;
   stroke-linecap: round;
 `;
 
-const HatchBar = styled.rect`
-  fill: url(#hatch-fade);
+const FillBar = styled.rect`
+  fill: url(#chart-fill);
 `;
 
 const HoverDot = styled.circle`
-  fill: var(--color-content-primary, #151515);
+  fill: ${CHART_ACCENT};
   stroke: var(--color-bg-primary, #ffffff);
   stroke-width: 2;
 `;
@@ -226,7 +228,7 @@ export function CreditRangeChart({ data, height = 220 }: CreditRangeChartProps) 
   const rightFor = (i: number) => padL + bandW * (i + 1);
   const centerFor = (i: number) => padL + bandW * (i + 0.5);
 
-  // Stepped path using the blended max values.
+  // Top cap lines — one horizontal segment per bucket, no vertical connectors.
   const stepPath = (() => {
     if (blendedMax.length === 0) return '';
     const parts: string[] = [];
@@ -234,24 +236,25 @@ export function CreditRangeChart({ data, height = 220 }: CreditRangeChartProps) 
       const y = yFor(v);
       const xL = leftFor(i);
       const xR = rightFor(i);
-      if (i === 0) parts.push(`M ${xL} ${y}`);
-      else parts.push(`L ${xL} ${y}`);
+      parts.push(`M ${xL} ${y}`);
       parts.push(`L ${xR} ${y}`);
     });
     return parts.join(' ');
   })();
 
-  // Hatch bars — positions and heights driven by blended values.
-  const hatchBars: Array<{ x: number; y: number; height: number }> = [];
-  const hatchSpacing = 4;
+  // Filled bars — one per blended bucket, gradient fades downward.
+  const fillBars: Array<{ x: number; y: number; width: number; height: number }> = [];
   blendedMax.forEach((v, i) => {
     if (v <= 0) return;
     const topY = yFor(v);
     const xL = leftFor(i);
     const xR = rightFor(i);
-    for (let x = xL + 1; x < xR - 1; x += hatchSpacing) {
-      hatchBars.push({ x, y: topY, height: padT + innerH - topY });
-    }
+    fillBars.push({
+      x: xL,
+      y: topY,
+      width: Math.max(xR - xL, 0),
+      height: padT + innerH - topY,
+    });
   });
 
   // Use the real (target) data for labels, tooltips, hit areas (no morph needed).
@@ -265,9 +268,9 @@ export function CreditRangeChart({ data, height = 220 }: CreditRangeChartProps) 
     <ChartWrap ref={wrapRef} $height={height}>
       <ChartSvg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
         <defs>
-          <linearGradient id="hatch-fade" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--color-content-primary, #151515)" stopOpacity="0.6" />
-            <stop offset="100%" stopColor="var(--color-content-primary, #151515)" stopOpacity="0" />
+          <linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={CHART_ACCENT} stopOpacity="0.28" />
+            <stop offset="100%" stopColor={CHART_ACCENT} stopOpacity="0.02" />
           </linearGradient>
         </defs>
 
@@ -281,9 +284,9 @@ export function CreditRangeChart({ data, height = 220 }: CreditRangeChartProps) 
           </g>
         ))}
 
-        {/* Hatch bars — interpolated positions */}
-        {hatchBars.map((h, i) => (
-          <HatchBar key={`h-${i}`} x={h.x - 0.5} y={h.y} width={1} height={h.height} />
+        {/* Filled bars — interpolated positions */}
+        {fillBars.map((b, i) => (
+          <FillBar key={`b-${i}`} x={b.x} y={b.y} width={b.width} height={b.height} />
         ))}
 
         {/* Morphing step line */}

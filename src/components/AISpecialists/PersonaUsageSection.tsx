@@ -107,18 +107,18 @@ const Section = styled.div`
   gap: var(--space-5, 20px);
 `;
 
-const SectionHeading = styled.div`
-  font-size: 12px;
+const SectionHeading = styled.h3`
+  margin: 0;
+  font-family: var(--font-sans, Geist, sans-serif);
+  font-size: 16px;
   font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--color-content-tertiary, #87919f);
+  color: var(--color-content-primary, #151515);
 `;
 
 const TopBar = styled.div`
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
 `;
 
 const StatsGrid = styled.div`
@@ -340,9 +340,8 @@ export function PersonaUsageSection({ personaId }: PersonaUsageSectionProps) {
 
   return (
     <Section>
-      <SectionHeading>Usage</SectionHeading>
-
       <TopBar>
+        <SectionHeading>Usage</SectionHeading>
         <SegmentedControl
           value={timeRange}
           onChange={(v: string) => setTimeRange(v as TimeRange)}
@@ -359,9 +358,9 @@ export function PersonaUsageSection({ personaId }: PersonaUsageSectionProps) {
         <DataCard
           color="green"
           icon={<Target04Icon size={24} />}
-          label="Specialist Activated%"
-          value={fmtPct(activatedPct)}
-          change={<Change current={activatedPct} prior={priorActivatedPct} />}
+          label="Specialist Activated"
+          value={`${meta?.triggersExecuted ?? 0} / ${meta?.triggersReceived ?? 0}`}
+          change={<Change current={meta?.triggersExecuted ?? 0} prior={priorMeta?.triggersExecuted ?? 0} />}
         />
         <DataCard
           color="blue"
