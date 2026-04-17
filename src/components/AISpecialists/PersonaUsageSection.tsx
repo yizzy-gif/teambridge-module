@@ -14,6 +14,7 @@ import {
 import {
   MOCK_EXECUTIONS,
   PERSONA_USAGE_META,
+  CREDIT_COST_RATE,
   getWindow,
   getPriorWindow,
   filterByWindow,
