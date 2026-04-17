@@ -463,9 +463,9 @@ export function SpecialistUsageContent() {
         <DataCard
           color="green"
           icon={<Target04Icon size={24} />}
-          label="Specialist Activated%"
-          value={fmtPct(activatedPct)}
-          change={<Change current={activatedPct} prior={priorActivatedPct} />}
+          label="Specialist Activated"
+          value={`${totalTriggersExecuted} / ${totalTriggersReceived}`}
+          change={<Change current={totalTriggersExecuted} prior={priorTriggersExecuted} />}
         />
         <DataCard
           color="blue"

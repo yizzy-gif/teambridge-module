@@ -44,11 +44,14 @@ const AxisLabel = styled.text`
               y 620ms cubic-bezier(0.77, 0, 0.175, 1);
 `;
 
-const CHART_ACCENT = 'var(--color-purple-bg-primary, #6366f1)';
+// AI gradient stops — mirrors var(--gradient-ai) (135deg: #8c4fe2 → #446cff → #1edfde)
+const AI_STOP_1 = '#8c4fe2';
+const AI_STOP_2 = '#446cff';
+const AI_STOP_3 = '#1edfde';
 
 const StepPath = styled.path`
   fill: none;
-  stroke: ${CHART_ACCENT};
+  stroke: url(#chart-stroke);
   stroke-width: 2.5;
   stroke-linejoin: round;
   stroke-linecap: round;
@@ -59,7 +62,7 @@ const FillBar = styled.rect`
 `;
 
 const HoverDot = styled.circle`
-  fill: ${CHART_ACCENT};
+  fill: ${AI_STOP_2};
   stroke: var(--color-bg-primary, #ffffff);
   stroke-width: 2;
 `;
@@ -268,9 +271,17 @@ export function CreditRangeChart({ data, height = 220 }: CreditRangeChartProps) 
     <ChartWrap ref={wrapRef} $height={height}>
       <ChartSvg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
         <defs>
+          {/* Vertical AI gradient used for the top cap line. */}
+          <linearGradient id="chart-stroke" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={AI_STOP_1} />
+            <stop offset="50%" stopColor={AI_STOP_2} />
+            <stop offset="100%" stopColor={AI_STOP_3} />
+          </linearGradient>
+          {/* Same AI gradient, softened to a faded wash for the bar fills. */}
           <linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={CHART_ACCENT} stopOpacity="0.28" />
-            <stop offset="100%" stopColor={CHART_ACCENT} stopOpacity="0.02" />
+            <stop offset="0%" stopColor={AI_STOP_1} stopOpacity="0.28" />
+            <stop offset="50%" stopColor={AI_STOP_2} stopOpacity="0.22" />
+            <stop offset="100%" stopColor={AI_STOP_3} stopOpacity="0.18" />
           </linearGradient>
         </defs>
 
