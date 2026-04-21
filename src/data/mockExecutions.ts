@@ -7,7 +7,7 @@
 export type ToolCategory = 'communication' | 'data_cleanup' | 'scheduling';
 export type CommunicationChannel = 'chat' | 'email' | 'sms';
 export type FeedbackValue = 'up' | 'down' | null;
-export type TimeRange = '24h' | '7d' | '30d';
+export type TimeRange = '24h' | '7d' | '30d' | 'all';
 export type SpecialistType = 'engage' | 'engage_less';
 export type ActivationSource = 'workflow' | 'ponder';
 export type EngagelessRunStatus = 'success' | 'in_progress' | 'incomplete';
@@ -77,6 +77,13 @@ export type DeploymentStatus = 'active' | 'paused';
 export interface Deployment { id: string; personaId: string; workflow: Workflow; status: DeploymentStatus; type: SpecialistType; }
 export interface PersonaUsageMeta { personaId: string; period: string; triggersReceived: number; triggersExecuted: number; }
 
+// ── Plan constants ────────────────────────────────────────────────────────────
+
+/** Workspace's monthly credit allowance. Drives the credit usage bar on the
+ *  AI Usage page; the bar always reports against this cap regardless of the
+ *  user's selected time range. */
+export const MONTHLY_CREDIT_ALLOCATION = 500_000;
+
 // ── Workflows ─────────────────────────────────────────────────────────────────
 
 export const WORKFLOWS: Workflow[] = [
@@ -144,7 +151,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 2400, description: 'Sent confirmation to Amy via chat', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 3200,
-    creditsUsed: 1250,
+    creditsUsed: 350,
     goal: 'Help employees update their profile information accurately',
     conversations: [
       {
@@ -197,7 +204,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 3200, description: 'Followed up with direct chat messages', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 4100,
-    creditsUsed: 1800,
+    creditsUsed: 500,
     goal: 'Ensure all eligible employees complete benefits enrollment before the deadline',
     conversations: [
       {
@@ -262,7 +269,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 6800, description: 'Posted audit summary to #hr-ops channel', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 7200,
-    creditsUsed: 34500,
+    creditsUsed: 9660,
     status: 'success',
     goal: 'Identify and resolve data inconsistencies in HR employee records',
     outcomeSummaryFull: 'Weekly HR data audit scanned 850 employee records. Found 6 with outdated manager assignments, auto-corrected 4 using the latest org chart, and flagged 2 for manual review. Summary posted to #hr-ops.',
@@ -286,7 +293,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 1400, description: 'Sent confirmation via chat', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 1800,
-    creditsUsed: 980,
+    creditsUsed: 270,
     goal: 'Help employees update their profile information accurately',
     conversations: [
       {
@@ -339,7 +346,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 4900, description: 'Posted audit summary to #hr-ops', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 5400,
-    creditsUsed: 31200,
+    creditsUsed: 8740,
     status: 'success',
     goal: 'Identify and resolve data inconsistencies in HR employee records',
     outcomeSummaryFull: 'Weekly HR audit scanned 852 records. Found 3 with missing department codes; all were auto-corrected via org chart mapping. Zero manual flags this week.',
@@ -368,7 +375,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 3800, description: 'Processed responses and confirmed coverage', toolCategory: 'scheduling' },
     ],
     durationMs: 4500,
-    creditsUsed: 2100,
+    creditsUsed: 590,
     goal: 'Find replacement coverage for open shifts as quickly as possible',
     conversations: [
       {
@@ -429,7 +436,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 2800, description: 'Collected acknowledgments', toolCategory: 'communication', channel: 'sms' },
     ],
     durationMs: 3400,
-    creditsUsed: 1650,
+    creditsUsed: 460,
     goal: 'Notify employees of schedule changes and collect acknowledgments',
     conversations: [
       {
@@ -487,7 +494,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 9200, description: 'Sent reconciliation report to managers via email', toolCategory: 'communication', channel: 'email' },
     ],
     durationMs: 9800,
-    creditsUsed: 38900,
+    creditsUsed: 10890,
     status: 'success',
     goal: 'Reconcile scheduled shifts with actual time-clock entries to detect discrepancies',
     outcomeSummaryFull: 'Weekly shift reconciliation compared 120 employees across 3 locations. Found 8 discrepancies: 5 auto-resolved (rounding differences), 3 flagged for manager review. Report emailed to location managers.',
@@ -511,7 +518,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 1600, description: 'Proposed swap to affected employees via chat', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 2400,
-    creditsUsed: 1420,
+    creditsUsed: 400,
     goal: 'Proactively resolve scheduling conflicts before they cause coverage gaps',
     conversations: [
       {
@@ -562,7 +569,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 3200, description: 'Followed up with checklist links via chat', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 4000,
-    creditsUsed: 2200,
+    creditsUsed: 620,
     goal: 'Guide new hires through their first-day onboarding checklist',
     conversations: [
       {
@@ -630,7 +637,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 5200, description: 'Emailed report to HR compliance team', toolCategory: 'communication', channel: 'email' },
     ],
     durationMs: 5600,
-    creditsUsed: 28600,
+    creditsUsed: 8010,
     status: 'success',
     goal: 'Ensure all new hire documents are collected and compliant within required timeframes',
     outcomeSummaryFull: 'Document audit for 14 Q2 hires: 2 missing signed NDAs (Ryan Brooks, Kenji Tanaka) and 1 incomplete I-9 Section 2 (Fatima Al-Said). Exception report sent to HR compliance team.',
@@ -655,7 +662,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 2400, description: 'Sent nudge reminders to HR team via email', toolCategory: 'communication', channel: 'email' },
     ],
     durationMs: 2800,
-    creditsUsed: 12400,
+    creditsUsed: 3470,
     status: 'in_progress',
     goal: 'Ensure onboarding checklists are completed within the target timeframe',
     outcomeSummaryFull: 'Ponder detected 3 onboarding checklists stale for over 5 days. Two are near completion (80%+), one is significantly behind (40%). Nudge reminders sent to HR team for follow-up.',
@@ -679,7 +686,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 1200, description: 'Sent follow-up messages via chat', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 1800,
-    creditsUsed: 1100,
+    creditsUsed: 310,
     goal: 'Follow up with new hires who have incomplete onboarding items from day 1',
     conversations: [
       {
@@ -723,7 +730,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 3800, description: 'Engaged customers in live chat for urgent tickets', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 5200,
-    creditsUsed: 2800,
+    creditsUsed: 780,
     goal: 'Triage incoming support tickets and provide timely first responses',
     conversations: [
       {
@@ -788,7 +795,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 800, description: 'Sent follow-up emails', toolCategory: 'communication', channel: 'email' },
     ],
     durationMs: 1200,
-    creditsUsed: 680,
+    creditsUsed: 190,
     goal: 'Follow up on open tickets that have been waiting for customer response',
     conversations: [
       {
@@ -835,7 +842,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 1000, description: 'Sent proactive check-in emails', toolCategory: 'communication', channel: 'email' },
     ],
     durationMs: 1600,
-    creditsUsed: 890,
+    creditsUsed: 250,
     goal: 'Proactively reach out to accounts showing significant usage drops',
     conversations: [
       {
@@ -886,7 +893,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 600, description: 'Initiated live chat with customer', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 980,
-    creditsUsed: 450,
+    creditsUsed: 130,
     goal: 'Respond to P1 tickets within 5 minutes and begin troubleshooting immediately',
     conversations: [
       {
@@ -930,7 +937,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 8400, description: 'Generated audit report and posted to #data-ops', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 9200,
-    creditsUsed: 42800,
+    creditsUsed: 11980,
     status: 'success',
     goal: 'Identify and resolve data inconsistencies in employee records',
     outcomeSummaryFull: 'Weekly data audit scanned 2,400 employee records. Found 12 with missing department codes, auto-corrected 9 using org chart data, and flagged 3 for manual review. Audit report posted to #data-ops.',
@@ -957,7 +964,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 9600, description: 'Updated dedup log and posted summary', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 10000,
-    creditsUsed: 47200,
+    creditsUsed: 13220,
     status: 'success',
     goal: 'Eliminate duplicate contact records to maintain data integrity',
     outcomeSummaryFull: 'Nightly dedup scanned 3,100 contact records. Found 18 potential duplicates: 14 auto-merged (high confidence), 4 queued for human review (low confidence). Dedup log updated.',
@@ -983,7 +990,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 3800, description: 'Emailed report to ops leadership', toolCategory: 'communication', channel: 'email' },
     ],
     durationMs: 4200,
-    creditsUsed: 18600,
+    creditsUsed: 5210,
     status: 'success',
     goal: 'Generate and distribute the weekly operations report to leadership',
     outcomeSummaryFull: 'Weekly ops report generated: aggregated data from 5 sources, computed WoW trends, formatted PDF created and emailed to ops leadership.',
@@ -1008,7 +1015,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 3800, description: 'Process halted: missing reference table access', toolCategory: 'data_cleanup' },
     ],
     durationMs: 4000,
-    creditsUsed: 22100,
+    creditsUsed: 6190,
     status: 'incomplete',
     goal: 'Clean up orphaned records in the staging table',
     outcomeSummaryFull: 'Ponder detected 42 orphaned records in staging. Matched 28 to master records, but 14 remain unresolved. Process halted due to missing access to the customer reference table. Manual intervention required.',
@@ -1034,7 +1041,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 6800, description: 'Flagged 2 for manual review', toolCategory: 'data_cleanup' },
     ],
     durationMs: 7400,
-    creditsUsed: 39500,
+    creditsUsed: 11060,
     status: 'in_progress',
     goal: 'Identify and resolve data inconsistencies in employee records',
     outcomeSummaryFull: 'Weekly data audit scanned 2,412 records. Found 5 with stale location data: 3 auto-corrected, 2 flagged for review. Report generation pending \u2014 awaiting confirmation from ops lead before posting.',
@@ -1062,7 +1069,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 1800, description: 'Responded to employee via chat', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 2400,
-    creditsUsed: 1050,
+    creditsUsed: 290,
     goal: 'Help employees understand and submit leave requests accurately',
     conversations: [
       {
@@ -1110,7 +1117,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 1500, description: 'Answered employee via chat', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 2100,
-    creditsUsed: 880,
+    creditsUsed: 250,
     goal: 'Answer benefits policy questions accurately and promptly',
     conversations: [
       {
@@ -1147,7 +1154,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 2100, description: 'Messaged affected employees via chat', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 2800,
-    creditsUsed: 1320,
+    creditsUsed: 370,
     goal: 'Proactively clarify confusing policies when multiple employees ask similar questions',
     conversations: [
       {
@@ -1195,7 +1202,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 5600, description: 'Flagged 4 for comp-team review', toolCategory: 'data_cleanup' },
     ],
     durationMs: 6100,
-    creditsUsed: 29400,
+    creditsUsed: 8230,
     status: 'success',
     goal: 'Keep job titles consistent with approved compensation bands',
     outcomeSummaryFull: 'Monthly role audit found 11 title/band mismatches across 850 records. 7 were auto-corrected using the approved promotion log; 4 were escalated to the compensation team.',
@@ -1220,7 +1227,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 3700, description: 'Emailed letters to requesting parties', toolCategory: 'communication', channel: 'email' },
     ],
     durationMs: 4200,
-    creditsUsed: 19800,
+    creditsUsed: 5540,
     status: 'success',
     goal: 'Respond to third-party employment verification requests same-day',
     outcomeSummaryFull: 'Processed 18 employment verification requests for mortgage, rental, and loan applications. All standardized letters generated and emailed same-day.',
@@ -1249,7 +1256,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 2400, description: 'Confirmed accepted swap and updated schedule', toolCategory: 'scheduling' },
     ],
     durationMs: 3000,
-    creditsUsed: 1450,
+    creditsUsed: 410,
     goal: 'Facilitate shift swaps between eligible employees',
     conversations: [
       {
@@ -1297,7 +1304,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 1400, description: 'Sent confirmation SMS to each affected employee', toolCategory: 'communication', channel: 'sms' },
     ],
     durationMs: 2600,
-    creditsUsed: 1580,
+    creditsUsed: 440,
     goal: 'Make sure every employee acknowledges their upcoming schedule',
     conversations: [
       {
@@ -1352,7 +1359,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 3200, description: 'Confirmed two accepts', toolCategory: 'scheduling' },
     ],
     durationMs: 3800,
-    creditsUsed: 1720,
+    creditsUsed: 480,
     goal: 'Close predicted coverage gaps before the shift starts',
     conversations: [
       {
@@ -1401,7 +1408,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 8200, description: 'Flagged 4 for manager confirmation', toolCategory: 'data_cleanup' },
     ],
     durationMs: 8900,
-    creditsUsed: 41200,
+    creditsUsed: 11540,
     status: 'success',
     goal: 'Catch and resolve missing timecard punches before payroll runs',
     outcomeSummaryFull: 'Bi-weekly timecard audit covered 220 hourly employees. 14 missed punches detected: 10 inferred from scheduled shifts, 4 flagged for manager review. Ready for payroll.',
@@ -1426,7 +1433,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 4600, description: 'Posted coverage needs to #scheduling channel', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 5200,
-    creditsUsed: 26800,
+    creditsUsed: 7500,
     status: 'success',
     goal: 'Identify shift gaps 7 days in advance so managers can act',
     outcomeSummaryFull: 'Daily shift gap scan detected 6 under-staffed windows across next 7 days (3 dinner, 2 weekend morning, 1 overnight). Coverage needs posted for managers.',
@@ -1450,7 +1457,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 4800, description: 'Waiting on missing export from Store 17', toolCategory: 'data_cleanup' },
     ],
     durationMs: 5100,
-    creditsUsed: 18900,
+    creditsUsed: 5290,
     status: 'in_progress',
     goal: 'Reconcile scheduled shifts with time-clock entries across all locations',
     outcomeSummaryFull: 'Cross-location reconciliation running. 4 of 5 location exports received; waiting on Store 17 data before completing the compare.',
@@ -1478,7 +1485,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 1200, description: 'Sent reminders via email', toolCategory: 'communication', channel: 'email' },
     ],
     durationMs: 1900,
-    creditsUsed: 920,
+    creditsUsed: 260,
     goal: 'Ensure new hires complete compliance documents on time',
     conversations: [
       {
@@ -1525,7 +1532,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 1600, description: 'Sent invites to 5 new hires', toolCategory: 'communication', channel: 'email' },
     ],
     durationMs: 2300,
-    creditsUsed: 1140,
+    creditsUsed: 320,
     goal: 'Book and confirm orientation sessions for new cohorts',
     conversations: [
       {
@@ -1571,7 +1578,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 1100, description: 'Sent check-in messages via chat', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 1700,
-    creditsUsed: 980,
+    creditsUsed: 270,
     goal: 'Check in with new hires 2 weeks in to surface blockers',
     conversations: [
       {
@@ -1620,7 +1627,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 4000, description: 'Generated audit summary', toolCategory: 'data_cleanup' },
     ],
     durationMs: 4600,
-    creditsUsed: 21400,
+    creditsUsed: 5990,
     status: 'success',
     goal: 'Track onboarding progress across all active new hires',
     outcomeSummaryFull: 'Audited 22 active onboarding plans. 19 on-track, 3 behind schedule (>3 days stale). Summary emailed to people-ops lead.',
@@ -1645,7 +1652,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 3700, description: 'Generated re-verification task list for HR', toolCategory: 'data_cleanup' },
     ],
     durationMs: 4200,
-    creditsUsed: 23100,
+    creditsUsed: 6470,
     status: 'success',
     goal: 'Catch expiring work authorizations before they lapse',
     outcomeSummaryFull: 'Ponder flagged upcoming I-9 deadlines. Sweep found 4 employees whose work authorization re-verification is due in the next 30 days. Task list created for HR.',
@@ -1669,7 +1676,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 3600, description: 'LMS API rate limit hit \u2014 paused before completion', toolCategory: 'data_cleanup' },
     ],
     durationMs: 3900,
-    creditsUsed: 14600,
+    creditsUsed: 4090,
     status: 'incomplete',
     goal: 'Verify all employees meet monthly compliance training requirements',
     outcomeSummaryFull: 'Compliance status check processed 40 of 68 records before the LMS API rate limit blocked further reads. Remaining 28 will retry tonight.',
@@ -1697,7 +1704,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 1200, description: 'Responded with walkthrough', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 1800,
-    creditsUsed: 720,
+    creditsUsed: 200,
     goal: 'Answer product how-to questions quickly using FAQ knowledge',
     conversations: [
       {
@@ -1735,7 +1742,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 2200, description: 'Emailed confirmation', toolCategory: 'communication', channel: 'email' },
     ],
     durationMs: 2800,
-    creditsUsed: 1160,
+    creditsUsed: 320,
     goal: 'Process straightforward refund requests same-day within policy',
     conversations: [
       {
@@ -1772,7 +1779,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 3100, description: 'Updated customer via chat', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 3800,
-    creditsUsed: 1580,
+    creditsUsed: 440,
     goal: 'Triage and file bug reports with enough detail for engineering',
     conversations: [
       {
@@ -1809,7 +1816,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 1300, description: 'Walked customer through the change', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 1900,
-    creditsUsed: 820,
+    creditsUsed: 230,
     goal: 'Help customers manage account details and settings',
     conversations: [
       {
@@ -1859,7 +1866,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 1400, description: 'Replied to affected users via email', toolCategory: 'communication', channel: 'email' },
     ],
     durationMs: 2000,
-    creditsUsed: 1040,
+    creditsUsed: 290,
     goal: 'Batch-resolve common FAQ questions efficiently',
     conversations: [
       {
@@ -1915,7 +1922,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 1100, description: 'Thanked customer and explained next steps', toolCategory: 'communication', channel: 'email' },
     ],
     durationMs: 1700,
-    creditsUsed: 680,
+    creditsUsed: 190,
     goal: 'Route product feedback to the right team and close the loop with customers',
     conversations: [
       {
@@ -1957,7 +1964,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 9600, description: 'Posted green-light summary', toolCategory: 'communication', channel: 'chat' },
     ],
     durationMs: 10200,
-    creditsUsed: 54300,
+    creditsUsed: 15200,
     status: 'success',
     goal: 'Verify nightly ETL completed correctly before downstream jobs run',
     outcomeSummaryFull: 'Nightly ETL validation green across 14 tables. Row counts match source; sampled columns show no drift. Downstream reports cleared to run.',
@@ -1983,7 +1990,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 10800, description: 'Logged compliance action in audit trail', toolCategory: 'data_cleanup' },
     ],
     durationMs: 11400,
-    creditsUsed: 68700,
+    creditsUsed: 19240,
     status: 'success',
     goal: 'Detect and protect newly introduced PII columns automatically',
     outcomeSummaryFull: 'Post-schema PII scan of 28 new columns. Flagged 3 as PII (email, phone, DOB) and applied masking policy. Audit trail updated.',
@@ -2008,7 +2015,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 7200, description: 'Re-ran downstream aggregations', toolCategory: 'data_cleanup' },
     ],
     durationMs: 7900,
-    creditsUsed: 36400,
+    creditsUsed: 10190,
     status: 'success',
     goal: 'Normalize inconsistent null representations across tables',
     outcomeSummaryFull: 'Nightly null normalization: scanned 4,200 records, converted 312 inconsistent null representations to SQL NULL, and re-ran downstream aggregations.',
@@ -2033,7 +2040,7 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 4800, description: 'Generated formatted PDF and distribution list email', toolCategory: 'communication', channel: 'email' },
     ],
     durationMs: 5400,
-    creditsUsed: 31800,
+    creditsUsed: 8900,
     status: 'success',
     goal: 'Deliver the monthly operations report to executive distribution',
     outcomeSummaryFull: 'Monthly ops report generated from 8 sources, MoM trends computed, PDF distributed to executive list.',
@@ -2057,11 +2064,123 @@ export const MOCK_EXECUTIONS: ExecutionRecord[] = [
       { offsetMs: 6100, description: 'Job still running at scheduled checkpoint', toolCategory: 'data_cleanup' },
     ],
     durationMs: 6400,
-    creditsUsed: 24500,
+    creditsUsed: 6860,
     status: 'in_progress',
     goal: 'Clean up stale and malformed contact records nightly',
     outcomeSummaryFull: 'Nightly cleanup job processed 1,600 of 3,200 records before the reporting checkpoint. Remaining records will complete in the continuation run.',
     feedback: null,
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HISTORICAL EXECUTIONS (Jan–Mar 2026) — compact engage-less records added
+  // to give the "All" time-range view real month-over-month variation on the
+  // Credit Usage Over Time chart. Credit totals ramp up toward April 2026
+  // to read as a rising trend.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ── January 2026 (~45k credits) ────────────────────────────────────────────
+  {
+    id: 'exec-h01', specialistId: 'persona-005', personaName: 'DataOps', deploymentId: 'dep-011',
+    deploymentType: 'engage_less', activatedBy: 'workflow', timestamp: '2026-01-09T03:00:00Z',
+    trigger: { id: 'trig-h01', label: 'Weekly data audit', type: 'scheduled' },
+    workflow: WORKFLOWS[7],
+    steps: [{ offsetMs: 0, description: 'Weekly audit batch', toolCategory: 'data_cleanup' }],
+    durationMs: 5400, creditsUsed: 14_200, status: 'success',
+    goal: 'Audit records weekly', outcomeSummaryFull: 'Weekly audit completed.', feedback: 'up',
+  },
+  {
+    id: 'exec-h02', specialistId: 'persona-003', personaName: 'Onbi', deploymentId: 'dep-008',
+    deploymentType: 'engage_less', activatedBy: 'workflow', timestamp: '2026-01-17T11:20:00Z',
+    trigger: { id: 'trig-h02', label: 'Document collection batch', type: 'scheduled' },
+    workflow: WORKFLOWS[5],
+    steps: [{ offsetMs: 0, description: 'Collected onboarding docs', toolCategory: 'data_cleanup' }],
+    durationMs: 4200, creditsUsed: 16_500, status: 'success',
+    goal: 'Collect onboarding documents', outcomeSummaryFull: 'All outstanding documents collected.', feedback: 'up',
+  },
+  {
+    id: 'exec-h03', specialistId: 'persona-005', personaName: 'DataOps', deploymentId: 'dep-012',
+    deploymentType: 'engage_less', activatedBy: 'ponder', timestamp: '2026-01-26T18:45:00Z',
+    trigger: { id: 'trig-h03', label: 'Record cleanup', type: 'scheduled' },
+    workflow: WORKFLOWS[8],
+    steps: [{ offsetMs: 0, description: 'Deduped contact records', toolCategory: 'data_cleanup' }],
+    durationMs: 5100, creditsUsed: 14_800, status: 'success',
+    goal: 'Dedup contact records', outcomeSummaryFull: 'Merged 48 duplicate records.', feedback: null,
+  },
+
+  // ── February 2026 (~55k credits) ───────────────────────────────────────────
+  {
+    id: 'exec-h04', specialistId: 'persona-005', personaName: 'DataOps', deploymentId: 'dep-011',
+    deploymentType: 'engage_less', activatedBy: 'workflow', timestamp: '2026-02-03T04:00:00Z',
+    trigger: { id: 'trig-h04', label: 'Weekly data audit', type: 'scheduled' },
+    workflow: WORKFLOWS[7],
+    steps: [{ offsetMs: 0, description: 'Weekly audit batch', toolCategory: 'data_cleanup' }],
+    durationMs: 5600, creditsUsed: 13_700, status: 'success',
+    goal: 'Audit records weekly', outcomeSummaryFull: 'Weekly audit completed.', feedback: 'up',
+  },
+  {
+    id: 'exec-h05', specialistId: 'persona-005', personaName: 'DataOps', deploymentId: 'dep-013',
+    deploymentType: 'engage_less', activatedBy: 'workflow', timestamp: '2026-02-11T08:15:00Z',
+    trigger: { id: 'trig-h05', label: 'Ops reporting', type: 'scheduled' },
+    workflow: WORKFLOWS[9],
+    steps: [{ offsetMs: 0, description: 'Generated ops report', toolCategory: 'data_cleanup' }],
+    durationMs: 4800, creditsUsed: 15_200, status: 'success',
+    goal: 'Generate ops report', outcomeSummaryFull: 'Report generated and distributed.', feedback: 'up',
+  },
+  {
+    id: 'exec-h06', specialistId: 'persona-003', personaName: 'Onbi', deploymentId: 'dep-008',
+    deploymentType: 'engage_less', activatedBy: 'workflow', timestamp: '2026-02-19T10:00:00Z',
+    trigger: { id: 'trig-h06', label: 'Document collection batch', type: 'scheduled' },
+    workflow: WORKFLOWS[5],
+    steps: [{ offsetMs: 0, description: 'Collected onboarding docs', toolCategory: 'data_cleanup' }],
+    durationMs: 4100, creditsUsed: 13_400, status: 'success',
+    goal: 'Collect onboarding documents', outcomeSummaryFull: 'All outstanding documents collected.', feedback: null,
+  },
+  {
+    id: 'exec-h07', specialistId: 'persona-005', personaName: 'DataOps', deploymentId: 'dep-012',
+    deploymentType: 'engage_less', activatedBy: 'ponder', timestamp: '2026-02-25T21:30:00Z',
+    trigger: { id: 'trig-h07', label: 'Record cleanup', type: 'scheduled' },
+    workflow: WORKFLOWS[8],
+    steps: [{ offsetMs: 0, description: 'Deduped contact records', toolCategory: 'data_cleanup' }],
+    durationMs: 5200, creditsUsed: 12_900, status: 'incomplete',
+    goal: 'Dedup contact records', outcomeSummaryFull: 'Partial cleanup — 65% of batch processed.', feedback: null,
+  },
+
+  // ── March 2026 (~70k credits) ──────────────────────────────────────────────
+  {
+    id: 'exec-h08', specialistId: 'persona-005', personaName: 'DataOps', deploymentId: 'dep-011',
+    deploymentType: 'engage_less', activatedBy: 'workflow', timestamp: '2026-03-05T03:00:00Z',
+    trigger: { id: 'trig-h08', label: 'Weekly data audit', type: 'scheduled' },
+    workflow: WORKFLOWS[7],
+    steps: [{ offsetMs: 0, description: 'Weekly audit batch', toolCategory: 'data_cleanup' }],
+    durationMs: 5400, creditsUsed: 17_600, status: 'success',
+    goal: 'Audit records weekly', outcomeSummaryFull: 'Weekly audit completed.', feedback: 'up',
+  },
+  {
+    id: 'exec-h09', specialistId: 'persona-003', personaName: 'Onbi', deploymentId: 'dep-008',
+    deploymentType: 'engage_less', activatedBy: 'workflow', timestamp: '2026-03-12T14:10:00Z',
+    trigger: { id: 'trig-h09', label: 'Document collection batch', type: 'scheduled' },
+    workflow: WORKFLOWS[5],
+    steps: [{ offsetMs: 0, description: 'Collected onboarding docs', toolCategory: 'data_cleanup' }],
+    durationMs: 4400, creditsUsed: 18_300, status: 'success',
+    goal: 'Collect onboarding documents', outcomeSummaryFull: 'All outstanding documents collected.', feedback: 'up',
+  },
+  {
+    id: 'exec-h10', specialistId: 'persona-005', personaName: 'DataOps', deploymentId: 'dep-012',
+    deploymentType: 'engage_less', activatedBy: 'workflow', timestamp: '2026-03-21T19:50:00Z',
+    trigger: { id: 'trig-h10', label: 'Record cleanup', type: 'scheduled' },
+    workflow: WORKFLOWS[8],
+    steps: [{ offsetMs: 0, description: 'Deduped contact records', toolCategory: 'data_cleanup' }],
+    durationMs: 5300, creditsUsed: 16_800, status: 'success',
+    goal: 'Dedup contact records', outcomeSummaryFull: 'Merged 53 duplicate records.', feedback: null,
+  },
+  {
+    id: 'exec-h11', specialistId: 'persona-005', personaName: 'DataOps', deploymentId: 'dep-013',
+    deploymentType: 'engage_less', activatedBy: 'workflow', timestamp: '2026-03-28T22:00:00Z',
+    trigger: { id: 'trig-h11', label: 'Ops reporting', type: 'scheduled' },
+    workflow: WORKFLOWS[9],
+    steps: [{ offsetMs: 0, description: 'Generated ops report', toolCategory: 'data_cleanup' }],
+    durationMs: 4900, creditsUsed: 17_400, status: 'success',
+    goal: 'Generate ops report', outcomeSummaryFull: 'Report generated and distributed.', feedback: 'up',
   },
 ];
 
@@ -2071,22 +2190,27 @@ export const PERSONA_USAGE_META: PersonaUsageMeta[] = [
   // Erin (persona-001)
   { personaId: 'persona-001', period: '7d', triggersReceived: 12, triggersExecuted: 9 },
   { personaId: 'persona-001', period: 'prior_7d', triggersReceived: 10, triggersExecuted: 7 },
+  { personaId: 'persona-001', period: 'all', triggersReceived: 248, triggersExecuted: 201 },
 
   // Sched (persona-002)
   { personaId: 'persona-002', period: '7d', triggersReceived: 8, triggersExecuted: 6 },
   { personaId: 'persona-002', period: 'prior_7d', triggersReceived: 11, triggersExecuted: 9 },
+  { personaId: 'persona-002', period: 'all', triggersReceived: 173, triggersExecuted: 141 },
 
   // Onbi (persona-003)
   { personaId: 'persona-003', period: '7d', triggersReceived: 6, triggersExecuted: 5 },
   { personaId: 'persona-003', period: 'prior_7d', triggersReceived: 4, triggersExecuted: 3 },
+  { personaId: 'persona-003', period: 'all', triggersReceived: 96, triggersExecuted: 82 },
 
   // Cassie (persona-004)
   { personaId: 'persona-004', period: '7d', triggersReceived: 15, triggersExecuted: 12 },
   { personaId: 'persona-004', period: 'prior_7d', triggersReceived: 13, triggersExecuted: 10 },
+  { personaId: 'persona-004', period: 'all', triggersReceived: 312, triggersExecuted: 254 },
 
   // DataOps (persona-005)
   { personaId: 'persona-005', period: '7d', triggersReceived: 9, triggersExecuted: 8 },
   { personaId: 'persona-005', period: 'prior_7d', triggersReceived: 7, triggersExecuted: 7 },
+  { personaId: 'persona-005', period: 'all', triggersReceived: 186, triggersExecuted: 165 },
 ];
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -2104,6 +2228,9 @@ export function getWindow(range: TimeRange, now: Date = MOCK_NOW): TimeWindow {
   if (range === '24h') from.setHours(from.getHours() - 24);
   if (range === '7d')  from.setDate(from.getDate() - 7);
   if (range === '30d') from.setDate(from.getDate() - 30);
+  // "All" spans a year back from now — generous enough to cover every
+  // mock record while still giving getPriorWindow a finite duration.
+  if (range === 'all') from.setFullYear(from.getFullYear() - 1);
   return { from, to };
 }
 

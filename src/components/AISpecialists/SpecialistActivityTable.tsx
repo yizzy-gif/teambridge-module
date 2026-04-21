@@ -1,5 +1,5 @@
 // Activity table for AI Specialist execution history.
-// Collapsed row: Time → Specialist → Outcome → Credits → Cost
+// Collapsed row: Time → [Persona] → Workflow → Goal → Credits → Outcome
 // Expanded: Engage shows per-user conversations with threads; Engage-less shows timeline.
 
 import React, { useMemo, useState } from 'react';
@@ -29,6 +29,7 @@ import {
   filterByWindow,
 } from '../../data/mockExecutions';
 import { mockPersonas } from '../../data/mockPersonas';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type {
   ExecutionRecord,
   ExecutionStep,
@@ -58,13 +59,22 @@ function formatAbsoluteTimestamp(iso: string): string {
   });
 }
 
+/** Human-friendly relative time. Within ~7 days we show "Just now" /
+ *  "N min ago" / "N hours ago" / "N days ago"; older than that we fall
+ *  back to the absolute date so the age is unambiguous. */
 function formatRelativeTimestamp(iso: string): string {
   const ts = new Date(iso);
   const diffMs = MOCK_NOW.getTime() - ts.getTime();
-  const diffH  = diffMs / 3_600_000;
-  if (diffH < 1)  return `${Math.round(diffMs / 60_000)}m ago`;
-  if (diffH < 24) return `${Math.round(diffH)}h ago`;
-  return ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const diffMin = Math.round(diffMs / 60_000);
+  const diffH = Math.round(diffMs / 3_600_000);
+  const diffD = Math.round(diffMs / 86_400_000);
+
+  if (diffMs < 60_000) return 'Just now';
+  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffH < 24) return diffH === 1 ? '1 hour ago' : `${diffH} hours ago`;
+  if (diffD < 7) return diffD === 1 ? '1 day ago' : `${diffD} days ago`;
+  // Older than a week — show the full date (e.g. "Apr 3, 2026").
+  return ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function fmtDuration(ms: number): string {
@@ -102,6 +112,29 @@ function avatarUrlFor(name: string): string {
   return `https://i.pravatar.cc/48?img=${seed}`;
 }
 
+/** Deterministic background color for a persona name. Each persona gets a
+ *  distinct Alloy color token so the chips read as part of the same design
+ *  system as the charts + tags elsewhere in the app. Hex fallbacks mirror
+ *  alloy-design-system/src/styles/tokens.css in case the var isn't loaded. */
+const PERSONA_AVATAR_COLORS = [
+  'var(--Alloy-purple-500, #6A59CE)',
+  'var(--Alloy-blue-500,   #1969FE)',
+  'var(--Alloy-azure-500,  #0B74DA)',
+  'var(--Alloy-matcha-500, #9CD303)',
+  'var(--Alloy-orange-500, #EE9C2D)',
+  'var(--Alloy-pink-500,   #FF2E92)',
+  'var(--Alloy-slate-500,  #475569)',
+] as const;
+
+function personaColorFor(name: string): string {
+  // Seed from length so short-name collisions (same first char) diverge.
+  let hash = name.length;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 131 + name.charCodeAt(i)) | 0;
+  }
+  return PERSONA_AVATAR_COLORS[Math.abs(hash) % PERSONA_AVATAR_COLORS.length];
+}
+
 // ── Tool category → Tag props ─────────────────────────────────────────────────
 
 const ACTION_TAG_PROPS: Record<ToolCategory, { color: string; label: string }> = {
@@ -128,9 +161,27 @@ const TableWrapper = styled.div<{ $columnCount: number }>`
     table-layout: fixed;
     width: 100%;
   }
-  & > table > thead > tr > th,
-  & > table > tbody > tr > td {
-    width: ${p => 100 / p.$columnCount}%;
+  /* Credits (2nd-to-last) is narrow — short numeric values; Goal
+     (3rd-to-last) gets double the share of a regular column so long
+     goal descriptions have room to breathe. Plain percentages (not
+     calc()) are required here — Chrome/Safari ignore differing calc()
+     widths under table-layout: fixed and flatten them to equal columns. */
+  /* Column width weights: Goal gets 3×, all other non-Credits columns
+     get 1×. Credits is pinned to a narrow 6%. Share formula keeps the
+     row at exactly 100% regardless of columnCount.
+       shares = (columnCount - 2) others + 3 (Goal) = columnCount + 1
+       one share = 94% / (columnCount + 1) */
+  & > table > thead > tr > th:not(:nth-last-child(2)):not(:nth-last-child(3)),
+  & > table > tbody > tr > td:not(:nth-last-child(2)):not(:nth-last-child(3)) {
+    width: ${p => (94 / (p.$columnCount + 1)).toFixed(4)}%;
+  }
+  & > table > thead > tr > th:nth-last-child(3),
+  & > table > tbody > tr > td:nth-last-child(3) {
+    width: ${p => ((94 / (p.$columnCount + 1)) * 3).toFixed(4)}%;
+  }
+  & > table > thead > tr > th:nth-last-child(2),
+  & > table > tbody > tr > td:nth-last-child(2) {
+    width: 6%;
   }
 `;
 
@@ -144,12 +195,6 @@ const EmptyCell = styled.td`
   padding: 32px 16px;
   font-family: var(--font-sans, Geist, sans-serif);
   font-size: 13px;
-`;
-
-const DetailSections = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5, 20px);
 `;
 
 const Section = styled.div`
@@ -181,7 +226,22 @@ const WorkflowLink = styled.a`
   font-size: 13px;
   color: var(--color-content-link, #446cff);
   text-decoration: none;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
   &:hover { text-decoration: underline; }
+`;
+
+/* CellText variant that truncates with ellipsis for long goal descriptions.
+   Inherits CellText's typography via styled(CellText). */
+const TruncatedCellText = styled(CellText)`
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 // Round avatar for the conversations list — deterministic photo per contact name.
@@ -192,6 +252,31 @@ const ContactAvatar = styled.img`
   object-fit: cover;
   flex-shrink: 0;
   background: var(--color-bg-tertiary, #f1f2f4);
+`;
+
+// Rounded-square initial avatar for personas in the Persona column. Each
+// persona gets a deterministic solid color so they're easy to scan.
+const PersonaAvatar = styled.span<{ $bg: string }>`
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-button, 6px);
+  background: ${p => p.$bg};
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans, Geist, sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1;
+`;
+
+const PersonaCellInner = styled.div`
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  min-width: 0;
 `;
 
 const ExpandToggle = styled.button`
@@ -212,12 +297,6 @@ const ExpandToggle = styled.button`
   }
 `;
 
-const ExpandedContent = styled.td`
-  padding: var(--space-6, 24px);
-  background: var(--color-bg-secondary, #f6f7f9);
-  border-bottom: 1px solid var(--color-border-opaque, #e8eaee);
-`;
-
 /* Split-cell variants so the right cell's left edge aligns with the Specialist column header. */
 const ExpandedMetaCell = styled.td`
   padding: var(--space-6, 24px);
@@ -229,6 +308,23 @@ const ExpandedMainCell = styled.td`
   padding: var(--space-6, 24px) var(--space-6, 24px) var(--space-6, 24px) var(--space-5, 20px);
   background: var(--color-bg-secondary, #f6f7f9);
   vertical-align: top;
+`;
+
+/* Single full-width cell that contains the metadata + conversations
+   sections. Using one td with a grid inside sidesteps the parent
+   table's fixed column widths — we get a true 50/50 split on wide
+   viewports and a stacked column on narrow ones. */
+const ExpandedStackedCell = styled.td`
+  padding: var(--space-6, 24px);
+  background: var(--color-bg-secondary, #f6f7f9);
+  vertical-align: top;
+`;
+
+const ExpandedGrid = styled.div<{ $stacked: boolean }>`
+  display: grid;
+  grid-template-columns: ${p => (p.$stacked ? '1fr' : '1fr 1fr')};
+  gap: var(--space-6, 24px);
+  align-items: start;
 `;
 
 const ExpandedFooterCell = styled.td`
@@ -258,31 +354,6 @@ const OutcomeTagWrap = styled.div`
     justify-content: center;
     text-align: center;
   }
-`;
-
-// ── Thread viewer ────────────────────────────────────────────────────────────
-
-const ThreadContainer = styled.div`
-  padding: var(--space-3, 12px) 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2, 8px);
-`;
-
-const ThreadMessage = styled.div`
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0 var(--space-2, 8px);
-  font-family: var(--font-mono, 'Geist Mono', monospace);
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--color-content-secondary, #475569);
-`;
-
-const ThreadRole = styled.span<{ $isAgent: boolean }>`
-  font-weight: 600;
-  white-space: nowrap;
-  color: ${p => p.$isAgent ? 'var(--color-content-link, #446cff)' : 'var(--color-content-primary, #151515)'};
 `;
 
 
@@ -346,14 +417,14 @@ const Timeline = styled.ol`
 const TimelineItem = styled.li`
   display: grid;
   grid-template-columns: 48px 1fr auto;
-  gap: var(--space-2, 8px) var(--space-3, 12px);
+  gap: var(--space-2, 8px);
   align-items: baseline;
   padding: var(--space-2, 8px) 0;
   position: relative;
   &:not(:last-child)::before {
     content: '';
     position: absolute;
-    left: 20px;
+    left: 8px;
     top: 28px;
     bottom: -8px;
     width: 1px;
@@ -366,7 +437,7 @@ const StepOffset = styled.span`
   font-size: 11px;
   color: var(--color-content-tertiary, #87919f);
   white-space: nowrap;
-  text-align: right;
+  text-align: left;
 `;
 
 const StepDesc = styled.span`
@@ -395,16 +466,26 @@ function StepTimeline({ steps }: { steps: ExecutionStep[] }) {
   );
 }
 
+// Indent the conversation timeline so the leading role label aligns
+// with the "User" column name (after the chevron + avatar gutter of the
+// enclosing conversations sub-table row).
+const ThreadTimeline = styled(Timeline)`
+  padding-left: 56px;
+`;
+
 function ThreadViewer({ thread }: { thread: ConversationMessage[] }) {
   return (
-    <ThreadContainer>
-      {thread.map((msg, i) => (
-        <ThreadMessage key={i}>
-          <ThreadRole $isAgent={msg.role === 'agent'}>[{msg.role === 'agent' ? 'Agent' : 'User'}]</ThreadRole>
-          <span>{msg.content}</span>
-        </ThreadMessage>
-      ))}
-    </ThreadContainer>
+    <ThreadTimeline aria-label="Conversation turns">
+      {thread.map((msg, i) => {
+        const isAgent = msg.role === 'agent';
+        return (
+          <TimelineItem key={i}>
+            <StepOffset>{isAgent ? 'Agent' : 'User'}</StepOffset>
+            <StepDesc>{msg.content}</StepDesc>
+          </TimelineItem>
+        );
+      })}
+    </ThreadTimeline>
   );
 }
 
@@ -458,6 +539,11 @@ function ConversationOutcomeBadge({ outcome }: { outcome: string }) {
 function EngageExpandedDetail({ record, mainColSpan, totalCols }: { record: EngageExecution; mainColSpan: number; totalCols: number }) {
   const [expandedConvId, setExpandedConvId] = useState<string | null>(null);
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
+  // Stack the two cells once the viewport gets narrow enough that the
+  // desktop "Time column + main column" split crushes the conversations
+  // sub-table. 1024px roughly matches the tablet/narrow-desktop cutoff
+  // where the split layout stops having room to breathe.
+  const isNarrow = useMediaQuery('(max-width: 1023px)');
 
   const persona = mockPersonas.find(p => p.id === record.specialistId);
 
@@ -465,83 +551,87 @@ function EngageExpandedDetail({ record, mainColSpan, totalCols }: { record: Enga
     setExpandedConvId(prev => (prev === id ? null : id));
   };
 
-  const reachedOut = record.conversations.map(c => c.contactName).join(', ');
+  // On mobile, the metadata + conversations collapse into a single
+  // full-width cell that stacks the two sections vertically — they'd
+  // otherwise share the cramped Time column width.
+  const metaSection = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6, 24px)' }}>
+      <Section>
+        <Eyebrow>Goal</Eyebrow>
+        <FullSummary>{record.goal}</FullSummary>
+      </Section>
+
+      <Section>
+        <Eyebrow>Summary</Eyebrow>
+        <FullSummary>{record.outcomeSummaryFull}</FullSummary>
+      </Section>
+    </div>
+  );
+
+  const conversationsSection = (
+    <Section>
+      <Eyebrow>Conversations</Eyebrow>
+      <TransparentTableWrap><Table size="sm">
+        <TableHeader>
+          <TableRow hoverable={false}>
+            <TableHead>User</TableHead>
+            <TableHead>Outcome</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {record.conversations.map(conv => (
+            <React.Fragment key={conv.id}>
+              <TableRow>
+                <TableCell>
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                    onClick={() => toggleConv(conv.id)}
+                    role="button"
+                    aria-expanded={expandedConvId === conv.id}
+                  >
+                    <ExpandToggle as="span" style={{ cursor: 'inherit' }}>
+                      {expandedConvId === conv.id ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
+                    </ExpandToggle>
+                    <ContactAvatar src={avatarUrlFor(conv.contactName)} alt="" />
+                    <CellText>{conv.contactName}</CellText>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <ConversationOutcomeBadge outcome={conv.outcome} />
+                </TableCell>
+              </TableRow>
+              {expandedConvId === conv.id && (
+                <tr>
+                  <td colSpan={2} style={{ padding: '0 16px 16px' }}>
+                    <ThreadViewer thread={conv.thread} />
+                  </td>
+                </tr>
+              )}
+            </React.Fragment>
+          ))}
+        </TableBody>
+      </Table>
+      </TransparentTableWrap>
+    </Section>
+  );
 
   return (
     <>
-      {/* Top row — metadata cell (Time column width) + conversations cell (Specialist→Cost) */}
+      {/* Top row — single full-width cell with a two-column grid inside.
+          50/50 on wide viewports, stacks on narrow. */}
       <tr>
-        <ExpandedMetaCell>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4, 16px)' }}>
-            <Section>
-              <Eyebrow>Reached out to</Eyebrow>
-              <DetailValue>{reachedOut}</DetailValue>
-            </Section>
-
-            <Section>
-              <Eyebrow>Goal</Eyebrow>
-              <FullSummary>{record.goal}</FullSummary>
-            </Section>
-
-            <Section>
-              <Eyebrow>Summary</Eyebrow>
-              <FullSummary>{record.outcomeSummaryFull}</FullSummary>
-            </Section>
-          </div>
-        </ExpandedMetaCell>
-
-        <ExpandedMainCell colSpan={mainColSpan}>
-          <Section>
-            <Eyebrow>Conversations</Eyebrow>
-            <TransparentTableWrap><Table size="sm">
-              <TableHeader>
-                <TableRow hoverable={false}>
-                  <TableHead>User</TableHead>
-                  <TableHead>Outcome</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {record.conversations.map(conv => (
-                  <React.Fragment key={conv.id}>
-                    <TableRow>
-                      <TableCell>
-                        <div
-                          style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                          onClick={() => toggleConv(conv.id)}
-                          role="button"
-                          aria-expanded={expandedConvId === conv.id}
-                        >
-                          <ExpandToggle as="span" style={{ cursor: 'inherit' }}>
-                            {expandedConvId === conv.id ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
-                          </ExpandToggle>
-                          <ContactAvatar src={avatarUrlFor(conv.contactName)} alt="" />
-                          <CellText>{conv.contactName}</CellText>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <ConversationOutcomeBadge outcome={conv.outcome} />
-                      </TableCell>
-                    </TableRow>
-                    {expandedConvId === conv.id && (
-                      <tr>
-                        <td colSpan={2} style={{ padding: '0 16px 16px' }}>
-                          <ThreadViewer thread={conv.thread} />
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-              </TableBody>
-            </Table>
-            </TransparentTableWrap>
-          </Section>
-        </ExpandedMainCell>
+        <ExpandedStackedCell colSpan={totalCols}>
+          <ExpandedGrid $stacked={isNarrow}>
+            {metaSection}
+            {conversationsSection}
+          </ExpandedGrid>
+        </ExpandedStackedCell>
       </tr>
 
       {/* Footer row — system prompt + recalculate, full table width */}
       <tr>
         <ExpandedFooterCell colSpan={totalCols}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4, 16px)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6, 24px)' }}>
             <Section>
               <CollapsibleHeader onClick={() => setShowSystemPrompt(!showSystemPrompt)}>
                 {showSystemPrompt ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
@@ -564,47 +654,69 @@ function EngageExpandedDetail({ record, mainColSpan, totalCols }: { record: Enga
 }
 
 // ── Engage-less expanded detail ──────────────────────────────────────────────
+// Same structural pattern as the engage variant: a top row with a 2-column
+// grid (Goal + Summary on the left, Span Details on the right) and a
+// footer row with the system-prompt disclosure + recalculate button.
 
-function EngagelessExpandedDetail({ record }: { record: EngagelessExecution }) {
+function EngagelessExpandedDetail({ record, totalCols }: { record: EngagelessExecution; totalCols: number }) {
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
+  const isNarrow = useMediaQuery('(max-width: 1023px)');
   const persona = mockPersonas.find(p => p.id === record.specialistId);
 
-  return (
-    <DetailSections>
+  const metaSection = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6, 24px)' }}>
       <Section>
         <Eyebrow>Goal</Eyebrow>
         <FullSummary>{record.goal}</FullSummary>
       </Section>
-
       <Section>
         <Eyebrow>Summary</Eyebrow>
         <FullSummary>{record.outcomeSummaryFull}</FullSummary>
       </Section>
+    </div>
+  );
 
-      <hr style={{ margin: 0, border: 'none', borderTop: '1px solid var(--color-border-opaque)' }} />
+  const spanDetailsSection = (
+    <Section>
+      <Eyebrow>Span details</Eyebrow>
+      <StepTimeline steps={record.steps} />
+    </Section>
+  );
 
-      <Section>
-        <Eyebrow>Span details</Eyebrow>
-        <StepTimeline steps={record.steps} />
-      </Section>
+  return (
+    <>
+      {/* Top row — 2-col grid (meta left, span details right). Stacks on narrow viewports. */}
+      <tr>
+        <ExpandedStackedCell colSpan={totalCols}>
+          <ExpandedGrid $stacked={isNarrow}>
+            {metaSection}
+            {spanDetailsSection}
+          </ExpandedGrid>
+        </ExpandedStackedCell>
+      </tr>
 
-      <hr style={{ margin: 0, border: 'none', borderTop: '1px solid var(--color-border-opaque)' }} />
+      {/* Footer row — system prompt + recalculate, full table width */}
+      <tr>
+        <ExpandedFooterCell colSpan={totalCols}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6, 24px)' }}>
+            <Section>
+              <CollapsibleHeader onClick={() => setShowSystemPrompt(!showSystemPrompt)}>
+                {showSystemPrompt ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
+                System Prompt
+              </CollapsibleHeader>
+              {showSystemPrompt && persona && (
+                <SystemPromptBox>{persona.configuration.instructions}</SystemPromptBox>
+              )}
+            </Section>
 
-      <Section>
-        <CollapsibleHeader onClick={() => setShowSystemPrompt(!showSystemPrompt)}>
-          {showSystemPrompt ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
-          System Prompt
-        </CollapsibleHeader>
-        {showSystemPrompt && persona && (
-          <SystemPromptBox>{persona.configuration.instructions}</SystemPromptBox>
-        )}
-      </Section>
-
-      <RecalcRow>
-        <Button size="sm" variant="secondary" onClick={() => {}}>Recalculate Outcome</Button>
-        <LastCalcText>Last calculated {formatAbsoluteTimestamp(MOCK_NOW.toISOString())}</LastCalcText>
-      </RecalcRow>
-    </DetailSections>
+            <RecalcRow>
+              <Button size="sm" variant="secondary" onClick={() => {}}>Recalculate Outcome</Button>
+              <LastCalcText>Last calculated {formatAbsoluteTimestamp(MOCK_NOW.toISOString())}</LastCalcText>
+            </RecalcRow>
+          </div>
+        </ExpandedFooterCell>
+      </tr>
+    </>
   );
 }
 
@@ -620,8 +732,8 @@ interface RowProps {
 function ExecutionRow({ record, expanded, onToggle, showPersonaColumn }: RowProps) {
   const isEngage = record.deploymentType === 'engage';
   // Total column count — drives colSpans for expanded rows.
-  // Columns: Time → [Persona] → Credits → Outcome
-  const totalCols = showPersonaColumn ? 4 : 3;
+  // Columns: Time → [Persona] → Workflow → Goal → Credits → Outcome
+  const totalCols = showPersonaColumn ? 6 : 5;
   // Conversations cell spans everything right of Time.
   const mainColSpan = totalCols - 1;
 
@@ -634,16 +746,41 @@ function ExecutionRow({ record, expanded, onToggle, showPersonaColumn }: RowProp
             <ExpandToggle aria-label={expanded ? 'Collapse row' : 'Expand row'} aria-expanded={expanded} onClick={onToggle}>
               {expanded ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />}
             </ExpandToggle>
-            <CellText variant="secondary">{formatAbsoluteTimestamp(record.timestamp)}</CellText>
+            <CellText variant="secondary" title={formatAbsoluteTimestamp(record.timestamp)}>
+              {formatRelativeTimestamp(record.timestamp)}
+            </CellText>
           </div>
         </TableCell>
 
         {/* Persona — shown only in aggregate views */}
         {showPersonaColumn && (
           <TableCell>
-            <CellText>{record.personaName}</CellText>
+            <PersonaCellInner>
+              <PersonaAvatar $bg={personaColorFor(record.personaName)} aria-hidden="true">
+                {record.personaName.charAt(0).toUpperCase()}
+              </PersonaAvatar>
+              <CellText>{record.personaName}</CellText>
+            </PersonaCellInner>
           </TableCell>
         )}
+
+        {/* Workflow — the workflow this specialist was deployed to */}
+        <TableCell>
+          <WorkflowLink
+            href={record.workflow.href}
+            onClick={e => e.stopPropagation()}
+            title={record.workflow.name}
+          >
+            {record.workflow.name}
+          </WorkflowLink>
+        </TableCell>
+
+        {/* Goal — the specialist's goal for this execution */}
+        <TableCell>
+          <TruncatedCellText variant="secondary" title={record.goal}>
+            {record.goal}
+          </TruncatedCellText>
+        </TableCell>
 
         {/* Credits */}
         <TableCell>
@@ -660,20 +797,19 @@ function ExecutionRow({ record, expanded, onToggle, showPersonaColumn }: RowProp
 
       {expanded && (
         isEngage ? (
-          /* Engage renders its own <tr> rows — the conversations cell spans
-             every column right of Time, structurally aligning with the
-             next column header (Persona in aggregate view, Outcome in single-persona view). */
+          /* Both variants now render their own <tr> rows (top split + footer)
+             so the layout is consistent: left column = goal/summary,
+             right column = conversations or span details. */
           <EngageExpandedDetail
             record={record as EngageExecution}
             mainColSpan={mainColSpan}
             totalCols={totalCols}
           />
         ) : (
-          <tr>
-            <ExpandedContent colSpan={totalCols}>
-              <EngagelessExpandedDetail record={record as EngagelessExecution} />
-            </ExpandedContent>
-          </tr>
+          <EngagelessExpandedDetail
+            record={record as EngagelessExecution}
+            totalCols={totalCols}
+          />
         )
       )}
     </>
@@ -733,9 +869,12 @@ interface SpecialistActivityTableProps {
   deploymentTypeFilter?: SpecialistType | 'all';
   records?: ExecutionRecord[];
   showPersonaColumn?: boolean;
+  /** When false, the table omits its own filter bar. Use when the hosting
+   *  page renders a filter bar of its own so the user sees a single control. */
+  showFilters?: boolean;
 }
 
-export function SpecialistActivityTable({ specialistId, timeRange, deploymentTypeFilter = 'all', records: recordsProp }: SpecialistActivityTableProps) {
+export function SpecialistActivityTable({ specialistId, timeRange, deploymentTypeFilter = 'all', records: recordsProp, showFilters = true }: SpecialistActivityTableProps) {
   const [personaFilter, setPersonaFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
@@ -764,26 +903,29 @@ export function SpecialistActivityTable({ specialistId, timeRange, deploymentTyp
   // Show Persona column + filter only in aggregate views (when no specialistId is provided).
   const showPersonaFilter = !specialistId;
   const showPersonaColumn = !specialistId;
-  const totalCols = showPersonaColumn ? 5 : 4;
+  // Columns: Time → [Persona] → Workflow → Goal → Credits → Outcome
+  const totalCols = showPersonaColumn ? 6 : 5;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3, 12px)' }}>
-      <FilterBarWrapper>
-        {showPersonaFilter && (
-          <div style={{ width: 160 }}>
-            <SelectField size="sm" options={PERSONA_OPTIONS} value={personaFilter} onChange={setPersonaFilter} />
+      {showFilters && (
+        <FilterBarWrapper>
+          {showPersonaFilter && (
+            <div style={{ width: 160 }}>
+              <SelectField size="sm" options={PERSONA_OPTIONS} value={personaFilter} onChange={setPersonaFilter} />
+            </div>
+          )}
+          <div style={{ width: 150 }}>
+            <SelectField size="sm" options={TYPE_OPTIONS} value={typeFilter} onChange={setTypeFilter} />
           </div>
-        )}
-        <div style={{ width: 150 }}>
-          <SelectField size="sm" options={TYPE_OPTIONS} value={typeFilter} onChange={setTypeFilter} />
-        </div>
-        <div style={{ width: 150 }}>
-          <SelectField size="sm" options={OUTCOME_OPTIONS} value={outcomeFilter} onChange={setOutcomeFilter} />
-        </div>
-        <div style={{ width: 150 }}>
-          <SelectField size="sm" options={ACTIVATION_OPTIONS} value={activationFilter} onChange={setActivationFilter} />
-        </div>
-      </FilterBarWrapper>
+          <div style={{ width: 150 }}>
+            <SelectField size="sm" options={OUTCOME_OPTIONS} value={outcomeFilter} onChange={setOutcomeFilter} />
+          </div>
+          <div style={{ width: 150 }}>
+            <SelectField size="sm" options={ACTIVATION_OPTIONS} value={activationFilter} onChange={setActivationFilter} />
+          </div>
+        </FilterBarWrapper>
+      )}
 
       <TableWrapper $columnCount={totalCols}>
         <Table size="sm">
@@ -791,6 +933,8 @@ export function SpecialistActivityTable({ specialistId, timeRange, deploymentTyp
             <TableRow hoverable={false}>
               <TableHead>Time</TableHead>
               {showPersonaColumn && <TableHead>Persona</TableHead>}
+              <TableHead>Workflow</TableHead>
+              <TableHead>Goal</TableHead>
               <TableHead>Credits</TableHead>
               <TableHead align="right">Outcome</TableHead>
             </TableRow>
