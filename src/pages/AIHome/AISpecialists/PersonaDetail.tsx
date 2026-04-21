@@ -97,7 +97,7 @@ const Page = styled.div`
 const HeaderCard = styled.div`
   background: var(--color-bg-secondary, #f6f7f9);
   border-radius: var(--radius-lg, 12px);
-  padding: var(--space-6, 24px);
+  padding: 20px;
   display: flex;
   align-items: flex-start;
   gap: var(--space-4, 16px);
