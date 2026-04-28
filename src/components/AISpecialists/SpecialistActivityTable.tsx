@@ -29,6 +29,7 @@ import {
   filterByWindow,
 } from '../../data/mockExecutions';
 import { mockPersonas } from '../../data/mockPersonas';
+import { PersonaAvatar } from './PersonaAvatar';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type {
   ExecutionRecord,
@@ -116,25 +117,6 @@ function avatarUrlFor(name: string): string {
  *  distinct Alloy color token so the chips read as part of the same design
  *  system as the charts + tags elsewhere in the app. Hex fallbacks mirror
  *  alloy-design-system/src/styles/tokens.css in case the var isn't loaded. */
-const PERSONA_AVATAR_COLORS = [
-  'var(--Alloy-purple-500, #6A59CE)',
-  'var(--Alloy-blue-500,   #1969FE)',
-  'var(--Alloy-azure-500,  #0B74DA)',
-  'var(--Alloy-matcha-500, #9CD303)',
-  'var(--Alloy-orange-500, #EE9C2D)',
-  'var(--Alloy-pink-500,   #FF2E92)',
-  'var(--Alloy-slate-500,  #475569)',
-] as const;
-
-function personaColorFor(name: string): string {
-  // Seed from length so short-name collisions (same first char) diverge.
-  let hash = name.length;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 131 + name.charCodeAt(i)) | 0;
-  }
-  return PERSONA_AVATAR_COLORS[Math.abs(hash) % PERSONA_AVATAR_COLORS.length];
-}
-
 // ── Tool category → Tag props ─────────────────────────────────────────────────
 
 const ACTION_TAG_PROPS: Record<ToolCategory, { color: string; label: string }> = {
@@ -254,22 +236,14 @@ const ContactAvatar = styled.img`
   background: var(--color-bg-tertiary, #f1f2f4);
 `;
 
-// Rounded-square initial avatar for personas in the Persona column. Each
-// persona gets a deterministic solid color so they're easy to scan.
-const PersonaAvatar = styled.span<{ $bg: string }>`
+// Wrapper for the per-persona SVG avatar in the Persona column.
+const PersonaAvatarWrap = styled.span`
   width: 24px;
   height: 24px;
-  border-radius: var(--radius-button, 6px);
-  background: ${p => p.$bg};
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-sans, Geist, sans-serif);
-  font-size: 11px;
-  font-weight: 600;
-  color: #fff;
-  line-height: 1;
 `;
 
 const PersonaCellInner = styled.div`
@@ -756,9 +730,9 @@ function ExecutionRow({ record, expanded, onToggle, showPersonaColumn }: RowProp
         {showPersonaColumn && (
           <TableCell>
             <PersonaCellInner>
-              <PersonaAvatar $bg={personaColorFor(record.personaName)} aria-hidden="true">
-                {record.personaName.charAt(0).toUpperCase()}
-              </PersonaAvatar>
+              <PersonaAvatarWrap aria-hidden="true">
+                <PersonaAvatar personaName={record.personaName} size={24} />
+              </PersonaAvatarWrap>
               <CellText>{record.personaName}</CellText>
             </PersonaCellInner>
           </TableCell>

@@ -29,6 +29,7 @@ import { mockPersonas } from '../../../data/mockPersonas';
 import { MultiTagInput } from '../../../components/AISpecialists/MultiTagInput';
 import { PersonaUsageSection } from '../../../components/AISpecialists/PersonaUsageSection';
 import { SpecialistActivityTable } from '../../../components/AISpecialists/SpecialistActivityTable';
+import { PersonaAvatar } from '../../../components/AISpecialists/PersonaAvatar';
 import type { VoiceOption } from '../../../data/mockPersonas';
 import { DEPLOYMENTS } from '../../../data/mockExecutions';
 import type { TimeRange } from '../../../data/mockExecutions';
@@ -47,16 +48,6 @@ function PencilIcon() {
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path d="M2 11.5L2.5 14l2.5-.5L13.414 5.086a1 1 0 0 0 0-1.414L12.328 2.586a1 1 0 0 0-1.414 0L2 11.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
       <path d="M10 4l2 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  );
-}
-
-// User/profile SVG for avatar upload placeholder
-function UserIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5"/>
-      <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   );
 }
@@ -95,48 +86,70 @@ const Page = styled.div`
 /* ── Header card ─────────────────────────────────────────────────────────── */
 
 const HeaderCard = styled.div`
+  position: relative;
   background: var(--color-bg-secondary, #f6f7f9);
   border-radius: var(--radius-lg, 12px);
   padding: 20px;
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-4, 16px);
+  overflow: hidden;
+  isolation: isolate;
 `;
 
-const AvatarBadge = styled.div`
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-button, 6px);
-  background: var(--gradient-ai, linear-gradient(135deg, #8c4fe2, #446cff, #1edfde));
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: 600;
-  color: #fff;
-  overflow: hidden;
+/* Avatar sits in the trailing portion of the card with consistent insets on
+   all four sides; its size scales with the card height (driven by the text
+   content) so the avatar always fits within the padded box. */
+const BleedAvatar = styled.div`
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  bottom: 20px;
+  aspect-ratio: 1 / 1;
+  z-index: 0;
+  pointer-events: none;
+
+  svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+`;
+
+const BleedFade = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 60%;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    var(--color-bg-secondary, #f6f7f9) 0%,
+    rgba(246, 247, 249, 0.85) 35%,
+    rgba(246, 247, 249, 0) 100%
+  );
 `;
 
 const HeaderGroup = styled.div`
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: var(--space-2, 8px);
-  flex: 1;
+  width: 60%;
   min-width: 0;
 `;
 
 const NameRow = styled.div`
   display: flex;
   align-items: center;
-  gap: var(--space-1, 4px);
+  gap: var(--space-2, 8px);
   flex-wrap: wrap;
 `;
 
 const PersonaName = styled.span`
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 600;
-  line-height: 24px;
+  line-height: 32px;
   color: var(--color-content-primary, #151515);
   white-space: nowrap;
   overflow: hidden;
@@ -186,16 +199,13 @@ const PersonaDescription = styled.div`
   font-weight: 400;
   line-height: 16px;
   color: var(--color-content-tertiary, #87919f);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 `;
 
 const EditIconButton = styled.button`
   all: unset;
-  width: 32px;
-  height: 32px;
-  display: flex;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md, 8px);
@@ -231,14 +241,12 @@ const AvatarPreview = styled.div`
   width: 64px;
   height: 64px;
   border-radius: var(--radius-lg, 12px);
-  background: var(--gradient-ai, linear-gradient(135deg, #8c4fe2, #446cff, #1edfde));
+  background: var(--color-bg-secondary, #f6f7f9);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
-  font-weight: 600;
-  color: #fff;
   flex-shrink: 0;
+  overflow: hidden;
 `;
 
 const AvatarUploadInfo = styled.div`
@@ -381,7 +389,6 @@ export function AISpecialistPersonaDetail({ personaId, onBack }: AISpecialistPer
   }
 
   const voiceLabel = selectedVoice.charAt(0).toUpperCase() + selectedVoice.slice(1);
-  const initial = displayName.charAt(0).toUpperCase();
 
   function handleEditOpen() {
     setEditName(displayName);
@@ -407,8 +414,6 @@ export function AISpecialistPersonaDetail({ personaId, onBack }: AISpecialistPer
     <Page>
       {/* ── Zone 1: Overview (untouched) ──────────────────────────────────── */}
       <HeaderCard>
-        <AvatarBadge>{initial}</AvatarBadge>
-
         <HeaderGroup>
           <NameRow>
             <PersonaName>{displayName}</PersonaName>
@@ -418,14 +423,18 @@ export function AISpecialistPersonaDetail({ personaId, onBack }: AISpecialistPer
               </VoicePillIcon>
               <VoicePillLabel>{voiceLabel}</VoicePillLabel>
             </VoicePill>
+            <EditIconButton aria-label="Edit specialist" onClick={handleEditOpen}>
+              <PencilIcon />
+            </EditIconButton>
           </NameRow>
           <PersonaRole>{displayTags.join(' · ')}</PersonaRole>
           <PersonaDescription>{displayDescription}</PersonaDescription>
         </HeaderGroup>
 
-        <EditIconButton aria-label="Edit specialist" onClick={handleEditOpen}>
-          <PencilIcon />
-        </EditIconButton>
+        <BleedAvatar aria-hidden="true">
+          <PersonaAvatar personaId={personaId} size={240} />
+        </BleedAvatar>
+        <BleedFade aria-hidden="true" />
       </HeaderCard>
 
       {/* Edit Persona dialog */}
@@ -438,7 +447,9 @@ export function AISpecialistPersonaDetail({ personaId, onBack }: AISpecialistPer
           <EditForm id={EDIT_FORM_ID} onSubmit={handleEditSave}>
             {/* Image / avatar selector */}
             <AvatarUpload>
-              <AvatarPreview>{editName.charAt(0).toUpperCase() || <UserIcon />}</AvatarPreview>
+              <AvatarPreview>
+                <PersonaAvatar personaId={personaId} size={64} />
+              </AvatarPreview>
               <AvatarUploadInfo>
                 <AvatarUploadLabel>Profile image</AvatarUploadLabel>
                 <AvatarUploadHint>Recommended: 256×256px, PNG or JPG</AvatarUploadHint>

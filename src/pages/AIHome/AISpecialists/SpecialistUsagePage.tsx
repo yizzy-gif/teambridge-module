@@ -13,6 +13,7 @@ import {
 } from 'alloy-design-system';
 import { SpecialistActivityTable } from '../../../components/AISpecialists/SpecialistActivityTable';
 import { CreditRangeChart } from '../../../components/AISpecialists/CreditRangeChart';
+import { TimeSavedChart } from '../../../components/AISpecialists/TimeSavedChart';
 import {
   MOCK_EXECUTIONS,
   PERSONA_USAGE_META,
@@ -20,12 +21,16 @@ import {
   MONTHLY_CREDIT_ALLOCATION,
   MOCK_NOW,
   WORKFLOWS,
+  MANUAL_BASELINES,
+  ACCOUNT_CONFIG,
   getWindow,
   getPriorWindow,
   filterByWindow,
   pctChange,
   countGoalsAchieved,
   countGoalsTotal,
+  calculateTimeSaved,
+  timeSavedByBucket,
 } from '../../../data/mockExecutions';
 import type { TimeRange, ExecutionRecord, EngagelessExecution, EngageExecution } from '../../../data/mockExecutions';
 
@@ -68,6 +73,32 @@ function fmtCost(dollars: number): string {
   if (dollars < 0.01) return '$0.00';
   return `$${dollars.toFixed(2)}`;
 }
+
+// Time-saved hero formatter — picks the biggest readable unit:
+//   < 60 min  → "42 min"
+//   < 24 h    → "14h 30m"
+//   ≥ 24 h    → "87 hours"
+function fmtTimeSaved(ms: number): string {
+  if (ms <= 0) return '0 min';
+  const totalMinutes = Math.round(ms / 60_000);
+  if (totalMinutes < 60) return `${totalMinutes} min`;
+  const totalHours = Math.floor(totalMinutes / 60);
+  const remMinutes = totalMinutes % 60;
+  if (totalHours < 24) {
+    return remMinutes === 0 ? `${totalHours}h` : `${totalHours}h ${remMinutes}m`;
+  }
+  return `${totalHours} hours`;
+}
+
+function fmtCostSaved(dollars: number): string {
+  if (dollars < 1) return '$0';
+  if (dollars < 1000) return `$${Math.round(dollars).toLocaleString('en-US')}`;
+  return `$${Math.round(dollars).toLocaleString('en-US')}`;
+}
+
+// Pre-computed baseline coverage stats for the Time Saved card footer.
+const historicalBaselineCount = MANUAL_BASELINES.filter(b => b.source === 'historical').length;
+const estimateBaselineCount = MANUAL_BASELINES.filter(b => b.source === 'estimate').length;
 
 // Daily buckets for 24h/7d/30d; monthly for 'all' (a year of daily
 // columns is too dense, so we roll up to ~12 month columns).
@@ -707,6 +738,45 @@ function StatBadgeGradientDefs() {
   );
 }
 
+// ── Time Saved card layout ───────────────────────────────────────────────────
+
+const TimeSavedHero = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-5, 20px) var(--space-6, 24px);
+`;
+
+const TimeSavedHeroPrimary = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3, 12px);
+  flex-wrap: wrap;
+`;
+
+const TimeSavedHeroSecondary = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2, 8px);
+  flex-wrap: wrap;
+`;
+
+const TimeSavedCost = styled.span`
+  font-family: var(--font-sans);
+  font-size: var(--text-xl, 20px);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-content-secondary, #475569);
+`;
+
+const TimeSavedFootnotes = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs, 12px);
+  color: var(--color-content-tertiary, #87919f);
+`;
+
 // ── Filter option builders ───────────────────────────────────────────────────
 
 const SPECIALIST_TYPE_OPTIONS = [
@@ -753,6 +823,7 @@ export function SpecialistUsageContent() {
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
   const [creditChartRange, setCreditChartRange] = useState<TimeRange>('7d');
   const [goalsRange, setGoalsRange] = useState<TimeRange>('7d');
+  const [timeSavedRange, setTimeSavedRange] = useState<TimeRange>('7d');
   const [typeFilter, setTypeFilter] = useState('all');
   const [workflowFilter, setWorkflowFilter] = useState('all');
   const [outcomeFilter, setOutcomeFilter] = useState('all');
@@ -1000,6 +1071,47 @@ export function SpecialistUsageContent() {
     return { rangeData, activeDays };
   }, [creditChartRecords, creditChartRange]);
 
+  // ── Time saved (by AI specialists vs manual baselines) ───────────────────
+  // Each card scopes itself to its own time range; this card is no different.
+  const timeSavedWindow = getWindow(timeSavedRange);
+  const timeSavedPriorWindow = getPriorWindow(timeSavedRange);
+  const timeSavedRecords = useMemo(
+    () => filterByWindow(filteredRecords, timeSavedWindow),
+    [filteredRecords, timeSavedRange],
+  );
+  const timeSavedPriorRecords = useMemo(
+    () => filterByWindow(filteredRecords, timeSavedPriorWindow),
+    [filteredRecords, timeSavedRange],
+  );
+
+  const timeSavedSummary = useMemo(
+    () => calculateTimeSaved(timeSavedRecords, MANUAL_BASELINES, ACCOUNT_CONFIG),
+    [timeSavedRecords],
+  );
+  const timeSavedPriorSummary = useMemo(
+    () => calculateTimeSaved(timeSavedPriorRecords, MANUAL_BASELINES, ACCOUNT_CONFIG),
+    [timeSavedPriorRecords],
+  );
+
+  const timeSavedSeries = useMemo(() => {
+    const bucket = bucketFor(timeSavedRange);
+    const byBucket = timeSavedByBucket(
+      timeSavedRecords,
+      ts => bucketKey(new Date(ts), bucket),
+      MANUAL_BASELINES,
+    );
+    const buckets = eachBucketInRange(timeSavedWindow.from, timeSavedWindow.to, bucket);
+    return buckets.map(d => ({
+      label: bucketLabel(d, bucket),
+      savedMs: byBucket[bucketKey(d, bucket)] ?? 0,
+    }));
+  }, [timeSavedRecords, timeSavedRange]);
+
+  // Pick the best y-axis unit so labels stay readable. If even the largest
+  // bucket is under an hour, show minutes; otherwise hours.
+  const timeSavedChartUnit: 'min' | 'hour' =
+    Math.max(0, ...timeSavedSeries.map(p => p.savedMs)) >= 3_600_000 ? 'hour' : 'min';
+
   // ── Goal Success Rate ─────────────────────────────────────────────────────
   const goalSuccessRate = totalCurrent > 0 ? (resolvedCurrent / totalCurrent) * 100 : 0;
   const priorGoalSuccessRate = totalPrior > 0 ? (resolvedPrior / totalPrior) * 100 : 0;
@@ -1032,7 +1144,7 @@ export function SpecialistUsageContent() {
                 other chart cards). CreditStatBlock's gap then only applies
                 between this header group and the HeroValue below. */}
             <div>
-              <ChartTitle>Current Session</ChartTitle>
+              <ChartTitle>Current Bill Period</ChartTitle>
               <ChartSubtitle>Resets in {monthlyBar.resetsIn}</ChartSubtitle>
             </div>
             {/* Hero row — percentage on the left, MoM delta + compare
@@ -1224,13 +1336,14 @@ export function SpecialistUsageContent() {
                 aria-label={`Daily activations heatmap with max ${activationsHeatmap.maxCount} in a single day`}
                 onMouseLeave={() => setHeatmapTooltip(null)}
               >
-                {/* Grid fills row-by-row; emit day-of-week rows outer,
-                    week columns inner, so cell (wi, di) lands at column
-                    wi on row di exactly like a GitHub heatmap. */}
-                {Array.from({ length: 7 }, (_, di) =>
-                  activationsHeatmap.weeks.map((week, wi) => {
+                {/* Grid uses column-major auto-flow with 7 rows, so we
+                    emit cells column-by-column (week outer, day inner) —
+                    each week becomes one vertical column, oldest on the
+                    left, latest on the right. */}
+                {activationsHeatmap.weeks.map((week, wi) =>
+                  Array.from({ length: 7 }, (_, di) => {
                     const day = week[di];
-                    if (!day) return <HeatmapCell key={`${di}-${wi}`} $level={0} />;
+                    if (!day) return <HeatmapCell key={`${wi}-${di}`} $level={0} />;
                     const level = heatmapLevel(day.count, activationsHeatmap.maxCount);
                     const dateLabel = day.date.toLocaleDateString('en-US', {
                       month: 'short',
@@ -1239,7 +1352,7 @@ export function SpecialistUsageContent() {
                     });
                     return (
                       <HeatmapCell
-                        key={`${di}-${wi}`}
+                        key={`${wi}-${di}`}
                         $level={level}
                         onMouseMove={(e) => setHeatmapTooltip({
                           x: e.clientX,
@@ -1267,6 +1380,66 @@ export function SpecialistUsageContent() {
           )}
         </ChartCard>
       </ChartGrid>
+
+      {/* ══════════ TIME SAVED CARD ══════════
+           Full-width row below the 2×2 grid. Hero stat (time + cost saved)
+           with a daily bar chart underneath, plus baseline-coverage notes. */}
+      <ChartCard>
+        <ChartCardHeader>
+          <div>
+            <ChartTitle>Time Saved</ChartTitle>
+            <ChartSubtitle>Estimated time saved by AI specialists vs manual task completion</ChartSubtitle>
+          </div>
+          <SegmentedControl
+            value={timeSavedRange}
+            onChange={(v: string) => setTimeSavedRange(v as TimeRange)}
+            size="sm"
+          >
+            <SegmentedControl.Item value="24h">24h</SegmentedControl.Item>
+            <SegmentedControl.Item value="7d">7d</SegmentedControl.Item>
+            <SegmentedControl.Item value="30d">30d</SegmentedControl.Item>
+            <SegmentedControl.Item value="all">All</SegmentedControl.Item>
+          </SegmentedControl>
+        </ChartCardHeader>
+
+        <TimeSavedHero>
+          <TimeSavedHeroPrimary>
+            <ChartHeroValue>{fmtTimeSaved(timeSavedSummary.totalTimeSavedMs)}</ChartHeroValue>
+            <Change
+              current={timeSavedSummary.totalTimeSavedMs}
+              prior={timeSavedPriorSummary.totalTimeSavedMs}
+            />
+          </TimeSavedHeroPrimary>
+          <TimeSavedHeroSecondary>
+            <TimeSavedCost>≈ {fmtCostSaved(timeSavedSummary.costSaved)} saved</TimeSavedCost>
+            <Change
+              current={timeSavedSummary.costSaved}
+              prior={timeSavedPriorSummary.costSaved}
+            />
+          </TimeSavedHeroSecondary>
+        </TimeSavedHero>
+
+        {timeSavedSummary.totalTimeSavedMs === 0 ? (
+          <EmptyState>No measurable time saved in this period</EmptyState>
+        ) : (
+          <TimeSavedChart data={timeSavedSeries} unit={timeSavedChartUnit} height={200} />
+        )}
+
+        <TimeSavedFootnotes>
+          <span>
+            Based on {historicalBaselineCount} historical baseline
+            {historicalBaselineCount === 1 ? '' : 's'} and {estimateBaselineCount} estimate
+            {estimateBaselineCount === 1 ? '' : 's'}.
+          </span>
+          {timeSavedSummary.goalsWithoutBaseline > 0 && (
+            <span>
+              {timeSavedSummary.goalsWithoutBaseline} goal
+              {timeSavedSummary.goalsWithoutBaseline === 1 ? '' : 's'} excluded — no manual
+              baseline data available.
+            </span>
+          )}
+        </TimeSavedFootnotes>
+      </ChartCard>
 
       {/* Floating tooltip for the Goals-by-Outcome stacked bar. Rendered
           here (top level of the page) rather than inside the chart card

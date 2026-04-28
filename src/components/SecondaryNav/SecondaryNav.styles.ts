@@ -209,6 +209,9 @@ export const NavBottom = styled.div`
   flex-shrink: 0;
   width: 270px;
   padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 `;
 
 export const BottomDivider = styled.hr`
@@ -217,7 +220,6 @@ export const BottomDivider = styled.hr`
   width: 100%;
   height: 1px;
   background: var(--color-border-opaque, #e8eaee);
-  margin-bottom: 8px;
 `;
 
 export const BottomItemIcon = styled.div`

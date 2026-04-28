@@ -76,8 +76,8 @@ const Tooltip = styled.div<{ $x: number; $y: number }>`
   left: ${p => p.$x}px;
   top: ${p => p.$y}px;
   transform: translate(-50%, calc(-100% - 10px));
-  background: var(--color-bg-inverse, #151515);
-  color: var(--color-content-inverse, #ffffff);
+  background: var(--color-bg-always-dark, #0f172a);
+  color: var(--color-bg-always-light, #ffffff);
   padding: var(--space-2, 8px) var(--space-3, 12px);
   border-radius: var(--radius-md, 8px);
   font-family: var(--font-sans, Geist, sans-serif);
@@ -85,13 +85,14 @@ const Tooltip = styled.div<{ $x: number; $y: number }>`
   line-height: 1.4;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 10;
+  box-shadow: var(--shadow-below-md, 0 4px 12px rgba(0, 0, 0, 0.15));
+  z-index: var(--z-tooltip, 999);
 `;
 
 const TooltipLabel = styled.div`
   font-weight: 600;
   margin-bottom: 2px;
+  color: rgba(255, 255, 255, 0.65);
 `;
 
 const TooltipRow = styled.div`
@@ -99,7 +100,7 @@ const TooltipRow = styled.div`
   align-items: center;
   gap: var(--space-2, 8px);
   font-size: 11px;
-  color: var(--color-content-inverse-secondary, #d4d8de);
+  color: var(--color-bg-always-light, #ffffff);
 `;
 
 function fmtCredits(n: number): string {

@@ -2300,3 +2300,155 @@ export function computeStats(records: ExecutionRecord[]): UsageStats {
   const totalCredits = records.reduce((sum, r) => sum + r.creditsUsed, 0);
   return { totalRuns, goalsAchieved, goalsTotal, successRate, avgDurationMs, totalCredits };
 }
+
+// ── Time-saved model ──────────────────────────────────────────────────────────
+// Manual baselines: how long a human took to complete the same workflow + goal,
+// stored per (workflowId, goal) pair. Used to estimate time saved by AI
+// specialists vs manual completion.
+
+export interface ManualBaseline {
+  workflowId: string;
+  /** Matches the `goal` field on ExecutionRecord exactly. */
+  goal: string;
+  /** Average human completion time, in milliseconds. */
+  avgManualDurationMs: number;
+  /** How many manual completions this average is based on. */
+  sampleSize: number;
+  /** Whether the baseline is real historical data or an admin estimate. */
+  source: 'historical' | 'estimate';
+}
+
+export interface AccountConfig {
+  /** Hourly labor rate in dollars used to convert time saved into cost saved. */
+  hourlyRate: number;
+}
+
+export const ACCOUNT_CONFIG: AccountConfig = {
+  hourlyRate: 30,
+};
+
+export const MANUAL_BASELINES: ManualBaseline[] = [
+  // HR / People Ops
+  { workflowId: 'wf-001', goal: 'Help employees update their profile information accurately', avgManualDurationMs: 900_000,   sampleSize: 45, source: 'historical' }, // 15 min
+  { workflowId: 'wf-001', goal: 'Help employees understand and submit leave requests accurately', avgManualDurationMs: 1_200_000, sampleSize: 28, source: 'historical' }, // 20 min
+  { workflowId: 'wf-001', goal: 'Proactively clarify confusing policies when multiple employees ask similar questions', avgManualDurationMs: 1_500_000, sampleSize: 18, source: 'estimate' }, // 25 min
+  { workflowId: 'wf-002', goal: 'Ensure all eligible employees complete benefits enrollment before the deadline', avgManualDurationMs: 1_800_000, sampleSize: 22, source: 'historical' }, // 30 min
+  { workflowId: 'wf-002', goal: 'Answer benefits policy questions accurately and promptly', avgManualDurationMs: 1_200_000, sampleSize: 36, source: 'historical' }, // 20 min
+
+  // Scheduling
+  { workflowId: 'wf-003', goal: 'Find replacement coverage for open shifts as quickly as possible', avgManualDurationMs: 2_400_000, sampleSize: 38, source: 'historical' }, // 40 min
+  { workflowId: 'wf-003', goal: 'Proactively resolve scheduling conflicts before they cause coverage gaps', avgManualDurationMs: 1_800_000, sampleSize: 60, source: 'historical' }, // 30 min
+  { workflowId: 'wf-003', goal: 'Facilitate shift swaps between eligible employees', avgManualDurationMs: 1_500_000, sampleSize: 33, source: 'historical' }, // 25 min
+  { workflowId: 'wf-003', goal: 'Reconcile scheduled shifts with actual time-clock entries to detect discrepancies', avgManualDurationMs: 2_700_000, sampleSize: 14, source: 'estimate' }, // 45 min
+  { workflowId: 'wf-003', goal: 'Close predicted coverage gaps before the shift starts', avgManualDurationMs: 1_500_000, sampleSize: 21, source: 'historical' }, // 25 min
+  { workflowId: 'wf-004', goal: 'Notify employees of schedule changes and collect acknowledgments', avgManualDurationMs: 600_000, sampleSize: 52, source: 'historical' }, // 10 min
+  { workflowId: 'wf-004', goal: 'Make sure every employee acknowledges their upcoming schedule', avgManualDurationMs: 900_000, sampleSize: 27, source: 'historical' }, // 15 min
+
+  // Onboarding
+  { workflowId: 'wf-005', goal: 'Guide new hires through their first-day onboarding checklist', avgManualDurationMs: 2_100_000, sampleSize: 19, source: 'historical' }, // 35 min
+  { workflowId: 'wf-005', goal: 'Follow up with new hires who have incomplete onboarding items from day 1', avgManualDurationMs: 1_500_000, sampleSize: 25, source: 'historical' }, // 25 min
+  { workflowId: 'wf-005', goal: 'Check in with new hires 2 weeks in to surface blockers', avgManualDurationMs: 1_200_000, sampleSize: 17, source: 'historical' }, // 20 min
+  { workflowId: 'wf-005', goal: 'Ensure onboarding checklists are completed within the target timeframe', avgManualDurationMs: 1_800_000, sampleSize: 11, source: 'estimate' }, // 30 min
+  { workflowId: 'wf-006', goal: 'Collect onboarding documents', avgManualDurationMs: 1_800_000, sampleSize: 24, source: 'historical' }, // 30 min
+  { workflowId: 'wf-006', goal: 'Verify all employees meet monthly compliance training requirements', avgManualDurationMs: 3_600_000, sampleSize: 12, source: 'estimate' }, // 60 min
+  { workflowId: 'wf-006', goal: 'Catch expiring work authorizations before they lapse', avgManualDurationMs: 1_500_000, sampleSize: 8, source: 'estimate' }, // 25 min
+
+  // Customer Support
+  { workflowId: 'wf-007', goal: 'Respond to P1 tickets within 5 minutes and begin troubleshooting immediately', avgManualDurationMs: 900_000, sampleSize: 80, source: 'historical' }, // 15 min
+  { workflowId: 'wf-007', goal: 'Triage incoming support tickets and provide timely first responses', avgManualDurationMs: 720_000, sampleSize: 64, source: 'historical' }, // 12 min
+  { workflowId: 'wf-007', goal: 'Process straightforward refund requests same-day within policy', avgManualDurationMs: 900_000, sampleSize: 40, source: 'historical' }, // 15 min
+  { workflowId: 'wf-007', goal: 'Batch-resolve common FAQ questions efficiently', avgManualDurationMs: 600_000, sampleSize: 55, source: 'historical' }, // 10 min
+  { workflowId: 'wf-007', goal: 'Route product feedback to the right team and close the loop with customers', avgManualDurationMs: 1_200_000, sampleSize: 22, source: 'historical' }, // 20 min
+
+  // Data Ops
+  { workflowId: 'wf-008', goal: 'Audit records weekly', avgManualDurationMs: 5_400_000, sampleSize: 20, source: 'historical' }, // 90 min
+  { workflowId: 'wf-008', goal: 'Identify and resolve data inconsistencies in HR employee records', avgManualDurationMs: 4_500_000, sampleSize: 18, source: 'historical' }, // 75 min
+  { workflowId: 'wf-008', goal: 'Identify and resolve data inconsistencies in employee records', avgManualDurationMs: 4_500_000, sampleSize: 16, source: 'historical' }, // 75 min
+  { workflowId: 'wf-009', goal: 'Dedup contact records', avgManualDurationMs: 2_700_000, sampleSize: 15, source: 'historical' }, // 45 min
+  { workflowId: 'wf-009', goal: 'Eliminate duplicate contact records to maintain data integrity', avgManualDurationMs: 2_700_000, sampleSize: 12, source: 'historical' }, // 45 min
+  { workflowId: 'wf-009', goal: 'Clean up orphaned records in the staging table', avgManualDurationMs: 1_800_000, sampleSize: 10, source: 'historical' }, // 30 min
+  { workflowId: 'wf-009', goal: 'Normalize inconsistent null representations across tables', avgManualDurationMs: 3_000_000, sampleSize: 9, source: 'estimate' }, // 50 min
+  { workflowId: 'wf-010', goal: 'Generate ops report', avgManualDurationMs: 3_600_000, sampleSize: 18, source: 'historical' }, // 60 min
+  { workflowId: 'wf-010', goal: 'Generate and distribute the weekly operations report to leadership', avgManualDurationMs: 4_500_000, sampleSize: 14, source: 'historical' }, // 75 min
+  { workflowId: 'wf-010', goal: 'Deliver the monthly operations report to executive distribution', avgManualDurationMs: 5_400_000, sampleSize: 6, source: 'estimate' }, // 90 min
+];
+
+/** Lookup helper — finds a baseline matching the (workflowId, goal) pair. */
+export function findBaseline(
+  baselines: ManualBaseline[],
+  workflowId: string,
+  goal: string,
+): ManualBaseline | undefined {
+  return baselines.find(b => b.workflowId === workflowId && b.goal === goal);
+}
+
+export interface TimeSavedSummary {
+  totalTimeSavedMs: number;
+  costSaved: number;
+  goalsWithBaseline: number;
+  goalsWithoutBaseline: number;
+}
+
+/** Compute aggregate time saved across a set of executions. Only successful
+ *  goals contribute. Goals without a matching baseline are counted in
+ *  `goalsWithoutBaseline` so callers can surface coverage gaps. */
+export function calculateTimeSaved(
+  executions: ExecutionRecord[],
+  baselines: ManualBaseline[] = MANUAL_BASELINES,
+  config: AccountConfig = ACCOUNT_CONFIG,
+): TimeSavedSummary {
+  let totalTimeSavedMs = 0;
+  let goalsWithBaseline = 0;
+  let goalsWithoutBaseline = 0;
+
+  for (const exec of executions) {
+    const baseline = findBaseline(baselines, exec.workflow.id, exec.goal);
+
+    if (exec.deploymentType === 'engage_less') {
+      if (exec.status !== 'success') continue;
+      if (!baseline) { goalsWithoutBaseline += 1; continue; }
+      totalTimeSavedMs += Math.max(baseline.avgManualDurationMs - exec.durationMs, 0);
+      goalsWithBaseline += 1;
+    } else {
+      const resolvedCount = exec.conversations.filter(c => c.outcome === 'goal_achieved').length;
+      if (resolvedCount === 0) continue;
+      if (!baseline) { goalsWithoutBaseline += resolvedCount; continue; }
+      const durationPerConversation = exec.durationMs / Math.max(1, exec.conversations.length);
+      const savedPerGoal = Math.max(baseline.avgManualDurationMs - durationPerConversation, 0);
+      totalTimeSavedMs += savedPerGoal * resolvedCount;
+      goalsWithBaseline += resolvedCount;
+    }
+  }
+
+  const totalHoursSaved = totalTimeSavedMs / 3_600_000;
+  const costSaved = totalHoursSaved * config.hourlyRate;
+  return { totalTimeSavedMs, costSaved, goalsWithBaseline, goalsWithoutBaseline };
+}
+
+/** Per-bucket breakdown of time saved. Buckets default to ISO date strings,
+ *  but the caller can pass a custom `bucketFn` to roll up to months etc. */
+export function timeSavedByBucket(
+  executions: ExecutionRecord[],
+  bucketFn: (timestamp: string) => string,
+  baselines: ManualBaseline[] = MANUAL_BASELINES,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const exec of executions) {
+    const baseline = findBaseline(baselines, exec.workflow.id, exec.goal);
+    if (!baseline) continue;
+    let savedMs = 0;
+    if (exec.deploymentType === 'engage_less') {
+      if (exec.status !== 'success') continue;
+      savedMs = Math.max(baseline.avgManualDurationMs - exec.durationMs, 0);
+    } else {
+      const resolvedCount = exec.conversations.filter(c => c.outcome === 'goal_achieved').length;
+      if (resolvedCount === 0) continue;
+      const durationPerConversation = exec.durationMs / Math.max(1, exec.conversations.length);
+      savedMs = Math.max(baseline.avgManualDurationMs - durationPerConversation, 0) * resolvedCount;
+    }
+    if (savedMs <= 0) continue;
+    const key = bucketFn(exec.timestamp);
+    out[key] = (out[key] ?? 0) + savedMs;
+  }
+  return out;
+}
