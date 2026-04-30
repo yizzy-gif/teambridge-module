@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogFooter,
   Button,
+  PlusIcon,
 } from 'alloy-design-system';
 import { mockPersonas } from '../../../data/mockPersonas';
 import { PersonaCard } from '../../../components/AISpecialists/PersonaCard';
@@ -65,9 +66,14 @@ export function AISpecialistsListPage({ onPersonaClick }: AISpecialistsListPageP
   return (
     <Page>
       <PageTitleRow>
-        <PageTitle>AI Specialists</PageTitle>
-        <Button variant="primary" size="sm" onClick={() => setDialogOpen(true)}>
-          New Specialist
+        <PageTitle>Personas</PageTitle>
+        <Button
+          variant="primary"
+          size="sm"
+          leadingArtwork={<PlusIcon />}
+          onClick={() => setDialogOpen(true)}
+        >
+          New Persona
         </Button>
       </PageTitleRow>
 

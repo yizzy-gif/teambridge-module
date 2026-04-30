@@ -2,11 +2,17 @@
 // original AppShell, extracted so AppShell can branch between desktop
 // and mobile chromes without changing either.
 
+import { useEffect, useState } from 'react';
 import { PrimaryNav } from '../PrimaryNav';
 import { SecondaryNav } from '../SecondaryNav';
 import { TopNav } from '../TopNav';
 import { AppShellRoot, MainArea, ContentArea, ContentMain } from './AppShell.styles';
 import type { AppShellProps } from './AppShell';
+
+const SEC_NAV_WIDTH_STORAGE_KEY = 'tb:secondary-nav-width';
+const SEC_NAV_DEFAULT_WIDTH = 270;
+const SEC_NAV_MIN_WIDTH = 220;
+const SEC_NAV_MAX_WIDTH = 520;
 
 export function DesktopShell({
   // PrimaryNav props
@@ -30,6 +36,8 @@ export function DesktopShell({
   onHeaderAction1,
   onHeaderAction2,
   onFilterClick,
+  headerSlot,
+  bodyContent,
   // TopNav props
   heading,
   actions,
@@ -42,6 +50,23 @@ export function DesktopShell({
   children,
   showSecondaryNav = true,
 }: AppShellProps) {
+  // Drag-resizable secondary nav width. Persisted across reloads via
+  // localStorage so the user's choice sticks.
+  const [secNavWidth, setSecNavWidth] = useState<number>(() => {
+    if (typeof window === 'undefined') return SEC_NAV_DEFAULT_WIDTH;
+    const stored = window.localStorage.getItem(SEC_NAV_WIDTH_STORAGE_KEY);
+    const parsed = stored ? parseInt(stored, 10) : NaN;
+    if (Number.isFinite(parsed)) {
+      return Math.min(SEC_NAV_MAX_WIDTH, Math.max(SEC_NAV_MIN_WIDTH, parsed));
+    }
+    return SEC_NAV_DEFAULT_WIDTH;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(SEC_NAV_WIDTH_STORAGE_KEY, String(secNavWidth));
+  }, [secNavWidth]);
+
   return (
     <AppShellRoot>
       <PrimaryNav
@@ -70,6 +95,12 @@ export function DesktopShell({
             onHeaderAction1={onHeaderAction1}
             onHeaderAction2={onHeaderAction2}
             onFilterClick={onFilterClick}
+            headerSlot={headerSlot}
+            bodyContent={bodyContent}
+            width={secNavWidth}
+            onWidthChange={setSecNavWidth}
+            minWidth={SEC_NAV_MIN_WIDTH}
+            maxWidth={SEC_NAV_MAX_WIDTH}
           />
         )}
 

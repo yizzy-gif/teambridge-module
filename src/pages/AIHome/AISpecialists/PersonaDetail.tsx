@@ -493,6 +493,9 @@ export function AISpecialistPersonaDetail({ personaId, onBack }: AISpecialistPer
           </EditForm>
         </DialogContent>
         <DialogFooter>
+          <Button variant="destructive-secondary" size="sm" style={{ marginRight: 'auto' }}>
+            Delete Persona
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => setEditOpen(false)}>
             Cancel
           </Button>
