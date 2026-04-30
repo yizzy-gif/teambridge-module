@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ListItem, ChevronDownIcon, SearchField, Button } from 'alloy-design-system';
 import type {
   SecondaryNavMenuEntry,
@@ -12,8 +12,11 @@ import {
   HeaderActions, SearchRow, FilterBtn,
   NavMiddle,
   GroupRow, GroupIconSlot, GroupLabel, GroupChevron, GroupChildren, MenuGroupWrapper,
+  MenuSectionLabel,
   SecNavIconSlot,
   NavBottom, BottomDivider, BottomItemIcon,
+  ResizeHandle,
+  SECONDARY_NAV_WIDTH,
 } from './SecondaryNav.styles';
 
 // ── Inline icons ───────────────────────────────────────────────────────────
@@ -129,6 +132,31 @@ export interface SecondaryNavProps {
   onHeaderAction1?: () => void;
   onHeaderAction2?: () => void;
   onFilterClick?: () => void;
+  /**
+   * Optional content rendered to the right of the heading, replacing the
+   * default 2 asterisk action buttons. Used by AI Home to slot in a view
+   * toggle plus a kebab menu containing the original actions.
+   */
+  headerSlot?: React.ReactNode;
+  /**
+   * When provided, replaces the menu body (NavMiddle) and hides the search
+   * row. NavBottom (Usage / Settings) always renders.
+   */
+  bodyContent?: React.ReactNode;
+  /**
+   * Pixel width of the panel. Defaults to 270 (the original fixed value).
+   * Pass a controlled value alongside `onWidthChange` for drag-to-resize.
+   */
+  width?: number;
+  /**
+   * Called while the user drags the resize handle. Receives the proposed
+   * new width in pixels (already clamped to the configured min/max).
+   */
+  onWidthChange?: (next: number) => void;
+  /** Min width in pixels. @default 220 */
+  minWidth?: number;
+  /** Max width in pixels. @default 520 */
+  maxWidth?: number;
 }
 
 export function SecondaryNav({
@@ -142,25 +170,74 @@ export function SecondaryNav({
   onHeaderAction1,
   onHeaderAction2,
   onFilterClick,
+  headerSlot,
+  bodyContent,
+  width = SECONDARY_NAV_WIDTH,
+  onWidthChange,
+  minWidth = 220,
+  maxWidth = 520,
 }: SecondaryNavProps) {
+  const hasCustomBody = bodyContent !== undefined;
+  const rootRef = useRef<HTMLElement | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
+
+  // Drag-to-resize: track the initial cursor position + width on
+  // mousedown, then translate cursor delta into a clamped new width on
+  // every mousemove. Mouse events are bound to window so the drag keeps
+  // updating even when the cursor leaves the handle.
+  useEffect(() => {
+    if (!isResizing || !onWidthChange) return;
+    const root = rootRef.current;
+    if (!root) return;
+
+    const startLeft = root.getBoundingClientRect().left;
+
+    const handleMove = (e: MouseEvent) => {
+      const next = Math.min(maxWidth, Math.max(minWidth, e.clientX - startLeft));
+      onWidthChange(next);
+    };
+    const handleUp = () => setIsResizing(false);
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    // Block text selection while dragging so the cursor stays as col-resize.
+    const prevUserSelect = document.body.style.userSelect;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+      document.body.style.userSelect = prevUserSelect;
+      document.body.style.cursor = '';
+    };
+  }, [isResizing, onWidthChange, minWidth, maxWidth]);
+
   return (
-    <SecondaryNavRoot $isVisible={isVisible} aria-label="Secondary navigation">
+    <SecondaryNavRoot
+      ref={rootRef}
+      $isVisible={isVisible}
+      $width={width}
+      $isResizing={isResizing}
+      aria-label="Secondary navigation"
+    >
 
       {/* Part 1: Top — heading + trailing buttons + search/filter */}
       <NavTop>
         <HeadingRow>
           <NavHeading>{heading}</NavHeading>
-          <HeaderActions>
-            <Button variant="ghost" size="sm" iconOnly onClick={onHeaderAction1} aria-label="Action">
-              <AsteriskIcon />
-            </Button>
-            <Button variant="ghost" size="sm" iconOnly onClick={onHeaderAction2} aria-label="Action">
-              <AsteriskIcon />
-            </Button>
-          </HeaderActions>
+          {headerSlot ?? (
+            <HeaderActions>
+              <Button variant="ghost" size="sm" iconOnly onClick={onHeaderAction1} aria-label="Action">
+                <AsteriskIcon />
+              </Button>
+              <Button variant="ghost" size="sm" iconOnly onClick={onHeaderAction2} aria-label="Action">
+                <AsteriskIcon />
+              </Button>
+            </HeaderActions>
+          )}
         </HeadingRow>
 
-        {showSearch && (
+        {showSearch && !hasCustomBody && (
           <SearchRow>
             <SearchField
               size="sm"
@@ -175,14 +252,22 @@ export function SecondaryNav({
         )}
       </NavTop>
 
-      {/* Part 2: Middle — menu items (single or group accordion) */}
-      <NavMiddle>
-        {menuEntries.map(entry =>
-          entry.type === 'single'
-            ? <MenuSingleItem key={entry.item.id} item={entry.item} />
-            : <MenuGroupItem key={entry.group.id} group={entry.group} />
-        )}
-      </NavMiddle>
+      {/* Part 2: Middle — either the menu body or caller-supplied content */}
+      {hasCustomBody ? (
+        bodyContent
+      ) : (
+        <NavMiddle>
+          {menuEntries.map(entry => {
+            if (entry.type === 'single') {
+              return <MenuSingleItem key={entry.item.id} item={entry.item} />;
+            }
+            if (entry.type === 'group') {
+              return <MenuGroupItem key={entry.group.id} group={entry.group} />;
+            }
+            return <MenuSectionLabel key={entry.label.id}>{entry.label.label}</MenuSectionLabel>;
+          })}
+        </NavMiddle>
+      )}
 
       {/* Part 3: Bottom — page entries (static, no active state) */}
       {pageEntries.length > 0 && (
@@ -210,6 +295,19 @@ export function SecondaryNav({
             />
           ))}
         </NavBottom>
+      )}
+
+      {onWidthChange && isVisible && (
+        <ResizeHandle
+          $isResizing={isResizing}
+          onMouseDown={e => {
+            e.preventDefault();
+            setIsResizing(true);
+          }}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize secondary navigation"
+        />
       )}
 
     </SecondaryNavRoot>

@@ -43,9 +43,15 @@ export interface SecondaryNavMenuGroup {
   children: SecondaryNavMenuItem[];
 }
 
+export interface SecondaryNavSectionLabel {
+  id: string;
+  label: string;
+}
+
 export type SecondaryNavMenuEntry =
   | { type: 'single'; item: SecondaryNavMenuItem }
-  | { type: 'group'; group: SecondaryNavMenuGroup };
+  | { type: 'group'; group: SecondaryNavMenuGroup }
+  | { type: 'label'; label: SecondaryNavSectionLabel };
 
 /** Bottom page entries (e.g. Usage, Settings) */
 export interface SecondaryNavPageEntry {

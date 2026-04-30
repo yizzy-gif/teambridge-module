@@ -14,13 +14,16 @@ import {
   Users03Icon, File04Icon, ClipboardCheckIcon,
   Grid01Icon, GitBranch01Icon, FeatherIcon, LineChartUp01Icon, SettingsGearIcon,
   HomeLineIcon, BarChart02Icon, ListBulletIcon, CheckCircleIcon, Breadcrumb,
+  SegmentedControl, DropdownMenu, Button, DotsHorizontalIcon,
+  AILoader,
 } from 'alloy-design-system';
+import { AIHomePanel } from './components/AIHomePanel/AIHomePanel';
 import { HeadingText } from './components/TopNav/TopNav.styles';
 import policyActiveUrl from './assets/policy-icon-active.svg';
 import automationActiveUrl from './assets/automation-icon-active.svg';
 import {
   HomePage, EngagedPage, InboxPage, InvoicePage, AIHomePage,
-  MarketplacePage, CustomAppPage, AddAppPage,
+  MarketplacePage, MarketplaceAppPage, CustomAppPage, AddAppPage,
   DocumentStudioPage, FormPage, TasksPage, PolicyPage,
   AutomationPage, PayrollPage, ESignPage,
 } from './pages';
@@ -70,11 +73,18 @@ interface SecGroupDef {
   icon?: React.ReactNode;
   children: SecItemDef[];
 }
-type SecEntryDef = SecItemDef | { group: SecGroupDef };
+interface SecLabelDef {
+  kind: 'label';
+  id: string;
+  label: string;
+}
+type SecEntryDef = SecItemDef | { group: SecGroupDef } | SecLabelDef;
 
 interface AppSecConfig {
   /** ID of item selected by default when entering this app */
   defaultId: string;
+  /** Optional pinned page selected by default (overrides defaultId visually) */
+  defaultPageId?: string;
   entries: SecEntryDef[];
 }
 
@@ -137,11 +147,15 @@ const APP_SEC_CONFIG: Record<string, AppSecConfig> = {
     ],
   },
   'marketplace': {
-    defaultId: 'mp-installed',
+    defaultId: 'mp-pay-rate',
+    defaultPageId: 'mp-community',
     entries: [
-      { id: 'mp-installed',   label: 'Installed',    icon: <CheckCircleIcon size={16} /> },
-      { id: 'mp-browse',      label: 'Browse All',   icon: <Grid01Icon size={16} /> },
-      { id: 'mp-categories',  label: 'Categories',   icon: <ListBulletIcon size={16} /> },
+      { kind: 'label', id: 'mp-my-apps-label', label: 'My apps' },
+      { id: 'mp-pay-rate',    label: 'Pay rate calculator',  icon: <BarChart02Icon size={16} /> },
+      { id: 'mp-onboarding',  label: 'Onboarding tracker',   icon: <ClipboardCheckIcon size={16} /> },
+      { id: 'mp-shift-swap',  label: 'Shift swap log',       icon: <GitBranch01Icon size={16} /> },
+      { id: 'mp-compliance',  label: 'Compliance checklist', icon: <CheckCircleIcon size={16} /> },
+      { id: 'mp-equipment',   label: 'Equipment audit',      icon: <ListBulletIcon size={16} /> },
     ],
   },
   'app-tool': {
@@ -256,14 +270,21 @@ function buildMenuEntries(
         },
       };
     }
+    if ('kind' in entry && entry.kind === 'label') {
+      return {
+        type: 'label' as const,
+        label: { id: entry.id, label: entry.label },
+      };
+    }
+    const item = entry as SecItemDef;
     return {
       type: 'single' as const,
       item: {
-        id: entry.id,
-        label: entry.label,
-        icon: entry.icon,
-        isActive: !isPageActive && secActiveId === entry.id,
-        onClick: () => setSecActiveId(entry.id),
+        id: item.id,
+        label: item.label,
+        icon: item.icon,
+        isActive: !isPageActive && secActiveId === item.id,
+        onClick: () => setSecActiveId(item.id),
       },
     };
   });
@@ -278,6 +299,8 @@ function lookupSecItem(appId: string, secActiveId: string): { label: string; par
       for (const child of entry.group.children) {
         if (child.id === secActiveId) return { label: child.label, parentLabel: entry.group.label };
       }
+    } else if ('kind' in entry && entry.kind === 'label') {
+      continue;
     } else if (entry.id === secActiveId) {
       return { label: entry.label };
     }
@@ -293,7 +316,7 @@ const APP_LABELS: Record<string, string> = {
   'inbox':       'Inbox',
   'invoice':     'Invoice',
   'ai-home':     'AI Home',
-  'marketplace': 'Marketplace',
+  'marketplace': 'Last Mile Apps',
   'app-tool':    'Custom App',
   'add-app':     'Add App',
   'docs':        'Document Studio',
@@ -353,14 +376,24 @@ function AIHomeContent({
   return <AIHomePage />;
 }
 
+function MarketplaceContent({ secActiveId }: { secActiveId: string }) {
+  const config = APP_SEC_CONFIG['marketplace'];
+  const item = config?.entries.find(
+    (e): e is SecItemDef => !('group' in e) && !('kind' in e) && e.id === secActiveId,
+  );
+  return <MarketplaceAppPage name={item?.label ?? 'App'} />;
+}
+
 function PageContent({
   activeId,
   secActiveId,
+  activePageId,
   selectedPersonaId,
   setSelectedPersonaId,
 }: {
   activeId: string;
   secActiveId: string;
+  activePageId: string | null;
   selectedPersonaId: string | null;
   setSelectedPersonaId: (id: string | null) => void;
 }) {
@@ -370,7 +403,10 @@ function PageContent({
     case 'inbox':       return <InboxPage />;
     case 'invoice':     return <InvoicePage />;
     case 'ai-home':     return <AIHomeContent secActiveId={secActiveId} selectedPersonaId={selectedPersonaId} setSelectedPersonaId={setSelectedPersonaId} />;
-    case 'marketplace': return <MarketplacePage />;
+    case 'marketplace':
+      return activePageId === 'mp-community'
+        ? <MarketplacePage />
+        : <MarketplaceContent secActiveId={secActiveId} />;
     case 'app-tool':    return <CustomAppPage />;
     case 'add-app':     return <AddAppPage />;
     case 'docs':        return <DocumentStudioPage />;
@@ -392,6 +428,9 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
   const [activePageId, setActivePageId] = useState<string | null>(null);
+  // AI Home secondary-nav body toggle: 'list' shows the existing menu
+  // items, 'ai' replaces the body with the inline AI chat panel.
+  const [aiHomeView, setAiHomeView] = useState<'list' | 'ai'>('list');
 
   // Per-module memory of the last-visited sub-section (mobile-only
   // behavior — desktop still resets to defaultId when switching apps).
@@ -413,19 +452,21 @@ export default function App() {
 
   // Switch primary app + reset secondary selection to default
   function handleAppSelect(id: string) {
+    const config = APP_SEC_CONFIG[id];
     setActiveId(id);
-    setSecActiveId(APP_SEC_CONFIG[id]?.defaultId ?? '');
-    setActivePageId(null);
+    setSecActiveId(config?.defaultId ?? '');
+    setActivePageId(config?.defaultPageId ?? null);
   }
 
   // Mobile-only: switch primary app and restore its last-visited sub-
   // section (falling back to defaultId, then to the first menu entry).
   function handleMobileNavigate(id: string) {
+    const config = APP_SEC_CONFIG[id];
     const remembered = lastSecByModule[id];
-    const fallback = APP_SEC_CONFIG[id]?.defaultId ?? '';
+    const fallback = config?.defaultId ?? '';
     setActiveId(id);
     setSecActiveId(remembered ?? fallback);
-    setActivePageId(null);
+    setActivePageId(remembered ? null : (config?.defaultPageId ?? null));
     setSelectedPersonaId(null);
   }
 
@@ -436,14 +477,31 @@ export default function App() {
   }
 
   const pageEntries: SecondaryNavPageEntry[] = [
-    {
-      id: 'usage',
-      label: 'Usage',
-      icon: <BarChart02Icon size={16} />,
-      isActive: activePageId === 'usage',
-      onClick: () => setActivePageId('usage'),
-    },
-    { id: 'settings', label: 'Settings' },
+    ...(activeId === 'marketplace'
+      ? [
+          {
+            id: 'mp-community',
+            label: 'Community Apps',
+            icon: <Users03Icon size={16} />,
+            isActive: activePageId === 'mp-community',
+            onClick: () => setActivePageId('mp-community'),
+          },
+        ]
+      : []),
+    ...(activeId === 'home' || activeId === 'marketplace'
+      ? []
+      : [
+          {
+            id: 'usage',
+            label: 'Usage',
+            icon: <BarChart02Icon size={16} />,
+            isActive: activePageId === 'usage',
+            onClick: () => setActivePageId('usage'),
+          },
+        ]),
+    ...(activeId === 'home' && aiHomeView === 'ai'
+      ? []
+      : [{ id: 'settings', label: 'Settings', icon: <SettingsGearIcon size={16} /> }]),
   ];
 
   const withActive = (items: typeof PRIMARY_ITEMS): PrimaryNavItem[] =>
@@ -460,6 +518,9 @@ export default function App() {
   const secMeta = lookupSecItem(activeId, secActiveId);
   const topNavHeading: React.ReactNode = (() => {
     if (activePageId === 'usage') return <HeadingText>Usage</HeadingText>;
+    if (activeId === 'marketplace' && activePageId === 'mp-community') {
+      return <HeadingText>Community Apps</HeadingText>;
+    }
     if (activeId === 'ai-home' && secActiveId === 'ai-personas' && selectedPersonaId) {
       const persona = mockPersonas.find(p => p.id === selectedPersonaId);
       return (
@@ -492,9 +553,60 @@ export default function App() {
   const mobilePrimaryLabel = activePageId === 'usage' ? 'Usage' : (APP_LABELS[activeId] ?? activeId);
   const mobileSecondaryLabel = activePageId === 'usage'
     ? undefined
-    : secMeta
-      ? (secMeta.parentLabel ? `${secMeta.parentLabel} / ${secMeta.label}` : secMeta.label)
-      : undefined;
+    : activeId === 'marketplace' && activePageId === 'mp-community'
+      ? 'Community Apps'
+      : secMeta
+        ? (secMeta.parentLabel ? `${secMeta.parentLabel} / ${secMeta.label}` : secMeta.label)
+        : undefined;
+
+  // ── AI Home: secondary-nav header slot + optional body override ──────
+  // Render the toggle only when the AI Home module is active. Layout
+  // budget at 270px is tight: instead of keeping the two original
+  // asterisk action buttons inline (which would overflow alongside the
+  // segmented control), they fold into a kebab DropdownMenu trigger.
+  const aiHomeHeaderSlot = activeId === 'home' ? (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2, 8px)' }}>
+      <DropdownMenu
+        placement="bottom-end"
+        trigger={
+          <Button variant="ghost" size="sm" iconOnly aria-label="More actions">
+            <DotsHorizontalIcon size={16} />
+          </Button>
+        }
+        groups={[
+          {
+            id: 'actions',
+            options: [
+              { id: 'action-1', label: 'Action' },
+              { id: 'action-2', label: 'Action' },
+            ],
+          },
+        ]}
+      />
+      <SegmentedControl
+        size="sm"
+        value={aiHomeView}
+        onChange={(v: string) => setAiHomeView(v as 'list' | 'ai')}
+        aria-label="AI Home view"
+      >
+        <SegmentedControl.Item value="list">List</SegmentedControl.Item>
+        <SegmentedControl.Item
+          value="ai"
+          leadingIcon={
+            <AILoader
+              variant={aiHomeView === 'ai' ? 'gradient-fill' : 'inverse'}
+              state="ready"
+              size={14}
+            />
+          }
+        >
+          AI
+        </SegmentedControl.Item>
+      </SegmentedControl>
+    </div>
+  ) : undefined;
+
+  const aiHomeBody = activeId === 'home' && aiHomeView === 'ai' ? <AIHomePanel /> : undefined;
 
   // Module catalog for PrimarySheet + ModuleDrawer. Groups mirror the
   // three-tier layout of the desktop PrimaryNav (main / tools /
@@ -523,9 +635,11 @@ export default function App() {
       showSearch
       searchValue={search}
       onSearchChange={setSearch}
+      headerSlot={aiHomeHeaderSlot}
+      bodyContent={aiHomeBody}
       // TopNav — only shows current secondary selection (app shown in SecNav)
       heading={topNavHeading}
-      actions={activeId === 'ai-home' || activePageId === 'usage' ? [] : DEFAULT_TOP_NAV_ACTIONS}
+      actions={activeId === 'ai-home' || activePageId === 'usage' || (activeId === 'marketplace' && activePageId === 'mp-community') ? [] : DEFAULT_TOP_NAV_ACTIONS}
       showActivityButton
       showPonderButton
       // Mobile chrome opt-in
@@ -547,6 +661,7 @@ export default function App() {
         <PageContent
           activeId={activeId}
           secActiveId={secActiveId}
+          activePageId={activePageId}
           selectedPersonaId={selectedPersonaId}
           setSelectedPersonaId={setSelectedPersonaId}
         />

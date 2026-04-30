@@ -1,17 +1,22 @@
 import styled from 'styled-components';
 
-export const SECONDARY_NAV_WIDTH = '270px';
+export const SECONDARY_NAV_WIDTH = 270;
+export const SECONDARY_NAV_MIN_WIDTH = 220;
+export const SECONDARY_NAV_MAX_WIDTH = 520;
 
-export const SecondaryNavRoot = styled.nav<{ $isVisible: boolean }>`
+export const SecondaryNavRoot = styled.nav<{ $isVisible: boolean; $width: number; $isResizing: boolean }>`
+  position: relative;
   display: flex;
   flex-direction: column;
-  width: ${p => (p.$isVisible ? SECONDARY_NAV_WIDTH : '0px')};
+  width: ${p => (p.$isVisible ? `${p.$width}px` : '0px')};
   height: 100%;
   flex-shrink: 0;
   background: var(--color-bg-primary, white);
   border-right: 1px solid var(--color-border-opaque, #e8eaee);
   overflow: hidden;
-  transition: width 200ms ease;
+  /* Skip the width transition during an active drag so the panel tracks
+     the cursor exactly; keep it for visibility toggles. */
+  transition: ${p => (p.$isResizing ? 'none' : 'width 200ms ease')};
 `;
 
 // ── Part 1: Top (sticky header + search) ──────────────────────────────────
@@ -24,7 +29,7 @@ export const NavTop = styled.div`
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  width: 270px;
+  width: 100%;
 `;
 
 export const HeadingRow = styled.div`
@@ -62,6 +67,14 @@ export const SearchRow = styled.div`
   gap: 6px;
   align-items: center;
   padding: 0 12px 8px;
+
+  /* The SearchField root sits in the first slot — flex it so the input
+     fills whatever room is left after the fixed-size filter button,
+     even when the secondary nav is dragged down to its min width. */
+  > div {
+    flex: 1;
+    min-width: 0;
+  }
 `;
 
 export const FilterBtn = styled.button`
@@ -101,7 +114,7 @@ export const NavMiddle = styled.div`
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-  width: 270px;
+  width: 100%;
   padding: 8px 12px;
   display: flex;
   flex-direction: column;
@@ -203,15 +216,50 @@ export const MenuGroupWrapper = styled.div`
   gap: 4px;
 `;
 
+/** Quiet section label inside the menu body (e.g. "My apps") */
+export const MenuSectionLabel = styled.div`
+  font-family: var(--font-sans, 'Geist', sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--color-content-inverse-tertiary, #87919f);
+  padding: 4px 8px 2px;
+`;
+
 // ── Part 3: Bottom (page entries, bottom-aligned) ─────────────────────────
 
 export const NavBottom = styled.div`
   flex-shrink: 0;
-  width: 270px;
-  padding: 8px 12px;
+  width: 100%;
+  padding: 0 12px 8px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+`;
+
+// 4px-wide invisible drag handle anchored to the right edge of the
+// SecondaryNavRoot. The visible affordance is just a slightly wider
+// hit area; the actual visual divider is the existing border-right.
+export const ResizeHandle = styled.div<{ $isResizing: boolean }>`
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  /* Translate half the width over the border so the cursor zone straddles
+     the existing 1px border-right. */
+  transform: translateX(3px);
+  background: ${p =>
+    p.$isResizing
+      ? 'var(--color-border-focus, #1969fe)'
+      : 'transparent'};
+  transition: background var(--duration-fast, 120ms) var(--ease-default, ease);
+
+  &:hover {
+    background: var(--color-border-focus, #1969fe);
+  }
 `;
 
 export const BottomDivider = styled.hr`

@@ -1,4 +1,10 @@
+import { useState } from 'react';
 import styled from 'styled-components';
+import {
+  AreaButton, Button, Eyebrow, Tag,
+  Download01Icon, ArrowNarrowRightIcon,
+} from 'alloy-design-system';
+import { FilterPill } from 'alloy-design-system/components/FilterPill';
 
 // ── Shared primitives ──────────────────────────────────────────────────────
 
@@ -326,29 +332,333 @@ export function AIHomePage() {
   );
 }
 
+// ── Marketplace (Last Mile Apps) ───────────────────────────────────────────
+
+const MpHeader = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+`;
+
+const MpHeadline = styled.h1`
+  margin: 0;
+  font-size: var(--text-3-5xl);
+  line-height: var(--line-height-snug);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-content-primary);
+`;
+
+const MpSubtitle = styled.p`
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-content-secondary);
+  max-width: 560px;
+`;
+
+const FilterRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-self: flex-start;
+`;
+
+const CommunityGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+`;
+
+const CommunityCard = styled.div`
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-opaque);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  transition:
+    border-color var(--duration-fast) var(--ease-default),
+    box-shadow var(--duration-fast) var(--ease-default);
+
+  &:hover {
+    border-color: var(--color-border-hover);
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.04));
+  }
+`;
+
+const CardTopRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+`;
+
+const CardName = styled.p`
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-content-primary);
+`;
+
+const CardDescription = styled.p`
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-content-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+`;
+
+const StatsRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+`;
+
+const UseAppSlot = styled.div`
+  margin-top: auto;
+  padding-top: var(--space-2);
+  display: flex;
+`;
+
+// ── Geometric shape icons (reference: Cool Shapes / flat color shapes) ────
+
+const ShapeWrap = styled.div`
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+function ShapeCircle({ color }: { color: string }) {
+  return <svg viewBox="0 0 40 40" width="40" height="40"><circle cx="20" cy="20" r="16" fill={color} /></svg>;
+}
+function ShapeSquare({ color }: { color: string }) {
+  return <svg viewBox="0 0 40 40" width="40" height="40"><rect x="6" y="6" width="28" height="28" rx="4" fill={color} /></svg>;
+}
+function ShapeTriangle({ color }: { color: string }) {
+  return <svg viewBox="0 0 40 40" width="40" height="40"><path d="M20 5 L36 33 L4 33 Z" fill={color} /></svg>;
+}
+function ShapeHexagon({ color }: { color: string }) {
+  return <svg viewBox="0 0 40 40" width="40" height="40"><path d="M20 4 L34 12 L34 28 L20 36 L6 28 L6 12 Z" fill={color} /></svg>;
+}
+function ShapePentagon({ color }: { color: string }) {
+  return <svg viewBox="0 0 40 40" width="40" height="40"><path d="M20 4 L36 16 L30 34 L10 34 L4 16 Z" fill={color} /></svg>;
+}
+function ShapeFlower({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 40 40" width="40" height="40">
+      <g fill={color}>
+        <circle cx="20" cy="9" r="6" />
+        <circle cx="31" cy="20" r="6" />
+        <circle cx="20" cy="31" r="6" />
+        <circle cx="9" cy="20" r="6" />
+      </g>
+      <circle cx="20" cy="20" r="5" fill="#fff" />
+    </svg>
+  );
+}
+function ShapeStar({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 40 40" width="40" height="40">
+      <path
+        d="M20 4 C21 14 26 19 36 20 C26 21 21 26 20 36 C19 26 14 21 4 20 C14 19 19 14 20 4 Z"
+        fill={color}
+      />
+    </svg>
+  );
+}
+function ShapeOctagon({ color }: { color: string }) {
+  return <svg viewBox="0 0 40 40" width="40" height="40"><path d="M14 4 L26 4 L36 14 L36 26 L26 36 L14 36 L4 26 L4 14 Z" fill={color} /></svg>;
+}
+function ShapeDiamond({ color }: { color: string }) {
+  return <svg viewBox="0 0 40 40" width="40" height="40"><path d="M20 4 L36 20 L20 36 L4 20 Z" fill={color} /></svg>;
+}
+
+type CategoryColor = 'blue' | 'azure' | 'purple' | 'pink' | 'red' | 'orange' | 'yellow' | 'matcha' | 'green' | 'neutral';
+
+interface AppDef {
+  name: string;
+  desc: string;
+  category: string;
+  categoryColor: CategoryColor;
+  installs: string;
+  tags: string[];
+  shape: React.ReactNode;
+}
+
+const COMMUNITY_APPS: AppDef[] = [
+  {
+    name: 'Time-off requester',
+    desc: 'Submit, approve, and track PTO requests in one form.',
+    category: 'HR',
+    categoryColor: 'green',
+    installs: '12,400',
+    tags: ['forms', 'pto'],
+    shape: <ShapeCircle color="var(--color-green-content-secondary, #7BB97A)" />,
+  },
+  {
+    name: 'Daily standup logger',
+    desc: 'Log blockers and progress for the team to review.',
+    category: 'PRODUCTIVITY',
+    categoryColor: 'purple',
+    installs: '8,200',
+    tags: ['team', 'async'],
+    shape: <ShapeSquare color="var(--color-purple-content-secondary, #9C8AE0)" />,
+  },
+  {
+    name: 'Mileage tracker',
+    desc: 'Log miles by trip with auto-calculated reimbursement.',
+    category: 'FIELD',
+    categoryColor: 'orange',
+    installs: '5,100',
+    tags: ['field', 'expense'],
+    shape: <ShapeTriangle color="var(--color-orange-content-secondary, #E08B4A)" />,
+  },
+  {
+    name: 'Incident report',
+    desc: 'Capture safety incidents with photo and location.',
+    category: 'SAFETY',
+    categoryColor: 'red',
+    installs: '3,800',
+    tags: ['safety', 'photo'],
+    shape: <ShapeOctagon color="var(--color-red-content-secondary, #D9534F)" />,
+  },
+  {
+    name: 'Tip pool calculator',
+    desc: 'Distribute tips across roles by hours worked.',
+    category: 'PAYROLL',
+    categoryColor: 'yellow',
+    installs: '6,500',
+    tags: ['tips', 'calc'],
+    shape: <ShapePentagon color="var(--color-yellow-content-secondary, #E8C547)" />,
+  },
+  {
+    name: 'Tool checkout',
+    desc: 'Track which equipment is signed out and by whom.',
+    category: 'OPERATIONS',
+    categoryColor: 'blue',
+    installs: '4,300',
+    tags: ['equipment', 'log'],
+    shape: <ShapeHexagon color="var(--color-blue-content-secondary, #4A8AB8)" />,
+  },
+  {
+    name: 'Shift swap board',
+    desc: 'Propose and accept shift swaps with manager approval.',
+    category: 'SCHEDULING',
+    categoryColor: 'pink',
+    installs: '9,100',
+    tags: ['shifts', 'approval'],
+    shape: <ShapeFlower color="var(--color-pink-content-secondary, #E68FB6)" />,
+  },
+  {
+    name: 'Compliance checklist',
+    desc: 'Daily and weekly checks with photo evidence and sign-off.',
+    category: 'COMPLIANCE',
+    categoryColor: 'azure',
+    installs: '4,800',
+    tags: ['audit', 'checklist'],
+    shape: <ShapeStar color="var(--color-azure-content-secondary, #5B3DF0)" />,
+  },
+  {
+    name: 'Equipment audit',
+    desc: 'Periodic counts and condition checks across locations.',
+    category: 'OPERATIONS',
+    categoryColor: 'matcha',
+    installs: '2,600',
+    tags: ['inventory', 'audit'],
+    shape: <ShapeDiamond color="var(--color-matcha-content-secondary, #3CB6A8)" />,
+  },
+];
+
+const FILTER_OPTIONS = ['All', 'Popular', 'HR', 'Operations', 'Safety', 'Payroll', 'Scheduling'];
+
 export function MarketplacePage() {
+  const [filter, setFilter] = useState('All');
+
+  const visible = filter === 'All' || filter === 'Popular'
+    ? COMMUNITY_APPS
+    : COMMUNITY_APPS.filter(app => app.category.toLowerCase() === filter.toLowerCase());
+
+  return (
+    <Page>
+      <MpHeader>
+        <Tag variant="outline" size="sm" color="neutral">APPS FOR YOUR TEAM</Tag>
+        <MpHeadline>Build, share, and run last-mile apps</MpHeadline>
+        <MpSubtitle>Browse shared apps from your team, or describe what you need and we'll build it.</MpSubtitle>
+      </MpHeader>
+
+      <AreaButton
+        layout="horizontal"
+        align="start"
+        size="md"
+        label="Create a new app — describe what you want and we'll build it."
+      />
+
+      <FilterRow>
+        {FILTER_OPTIONS.map(opt => (
+          <FilterPill key={opt} active={filter === opt} onClick={() => setFilter(opt)}>
+            {opt}
+          </FilterPill>
+        ))}
+      </FilterRow>
+
+      <CommunityGrid>
+        {visible.map(app => (
+          <CommunityCard key={app.name}>
+            <CardTopRow>
+              <ShapeWrap>{app.shape}</ShapeWrap>
+              <Eyebrow>{app.category}</Eyebrow>
+            </CardTopRow>
+            <CardName>{app.name}</CardName>
+            <CardDescription>{app.desc}</CardDescription>
+            <StatsRow>
+              <Tag size="sm" variant="subtle" color={app.categoryColor} leadingIcon={<Download01Icon size={12} />}>
+                {app.installs}
+              </Tag>
+              {app.tags.map(t => (
+                <Tag key={t} size="sm" variant="subtle" color="neutral">{t}</Tag>
+              ))}
+            </StatsRow>
+            <UseAppSlot>
+              <Button
+                variant="secondary"
+                size="sm"
+                trailingArtwork={<ArrowNarrowRightIcon size={14} />}
+              >
+                Use App
+              </Button>
+            </UseAppSlot>
+          </CommunityCard>
+        ))}
+      </CommunityGrid>
+    </Page>
+  );
+}
+
+export function MarketplaceAppPage({ name }: { name: string }) {
   return (
     <Page>
       <PageHeader>
-        <PageTitle>Marketplace</PageTitle>
-        <PageSubtitle>Discover and install apps for your workspace</PageSubtitle>
+        <PageTitle>{name}</PageTitle>
+        <PageSubtitle>One of your installed apps from Last Mile Apps.</PageSubtitle>
       </PageHeader>
-      <CardGrid>
-        {[
-          { name: 'Slack', desc: 'Team messaging & notifications', tag: 'Installed' },
-          { name: 'Greenhouse', desc: 'Recruiting & hiring pipeline', tag: 'Installed' },
-          { name: 'Okta', desc: 'Single sign-on & identity', tag: 'Installed' },
-          { name: 'Rippling', desc: 'Device & app management', tag: 'Available' },
-          { name: 'Gusto', desc: 'Benefits & payroll sync', tag: 'Available' },
-          { name: 'Lattice', desc: 'Performance management', tag: 'Available' },
-        ].map(app => (
-          <Card key={app.name}>
-            <CardLabel>{app.name}</CardLabel>
-            <CardDesc>{app.desc}</CardDesc>
-            <Badge $color={app.tag === 'Installed' ? '#e8f5e9' : undefined}>{app.tag}</Badge>
-          </Card>
-        ))}
-      </CardGrid>
+      <EmptyState>
+        <EmptyTitle>{name}</EmptyTitle>
+        <EmptyDesc>This app's content will render here.</EmptyDesc>
+      </EmptyState>
     </Page>
   );
 }
