@@ -81,6 +81,11 @@ function MenuGroupItem({ group }: { group: SecondaryNavMenuGroup }) {
       <GroupRow onClick={() => setExpanded(e => !e)} aria-expanded={expanded}>
         <GroupIconSlot>{group.icon ?? <AsteriskIcon />}</GroupIconSlot>
         <GroupLabel>{group.label}</GroupLabel>
+        {group.trailingBadge && (
+          <span style={{ display: 'inline-flex', flexShrink: 0, marginRight: 4 }}>
+            {group.trailingBadge}
+          </span>
+        )}
         <GroupChevron $expanded={expanded}>
           <ChevronDownIcon size={16} />
         </GroupChevron>
@@ -99,6 +104,7 @@ function MenuGroupItem({ group }: { group: SecondaryNavMenuGroup }) {
               leadingSlot={
                 <SecNavIconSlot>{child.icon ?? null}</SecNavIconSlot>
               }
+              trailingSlot={child.trailingSlot}
               selected={child.isActive}
               onClick={child.onClick}
               divider={false}

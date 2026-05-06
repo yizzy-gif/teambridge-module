@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
 import { AppShell } from './components/AppShell';
 import type { PrimaryNavItem, SecondaryNavMenuEntry, SecondaryNavPageEntry, TopNavAction } from './types/nav';
 import {
@@ -15,7 +16,8 @@ import {
   Grid01Icon, GitBranch01Icon, FeatherIcon, LineChartUp01Icon, SettingsGearIcon,
   HomeLineIcon, BarChart02Icon, ListBulletIcon, CheckCircleIcon, Breadcrumb,
   SegmentedControl, DropdownMenu, Button, DotsHorizontalIcon,
-  AILoader,
+  AILoader, Tag, ZapIcon,
+  Pin01Icon,
 } from 'alloy-design-system';
 import { AIHomePanel } from './components/AIHomePanel/AIHomePanel';
 import { HeadingText } from './components/TopNav/TopNav.styles';
@@ -26,6 +28,7 @@ import {
   MarketplacePage, MarketplaceAppPage, CustomAppPage, AddAppPage,
   DocumentStudioPage, FormPage, TasksPage, PolicyPage,
   AutomationPage, PayrollPage, ESignPage,
+  getMarketplaceAppIcon,
 } from './pages';
 import { AISpecialistsListPage } from './pages/AIHome/AISpecialists';
 import { AISpecialistPersonaDetail } from './pages/AIHome/AISpecialists/PersonaDetail';
@@ -66,11 +69,14 @@ interface SecItemDef {
   id: string;
   label: string;
   icon?: React.ReactNode;
+  /** When true, this item supports being pinned to the primary nav. */
+  pinnable?: boolean;
 }
 interface SecGroupDef {
   id: string;
   label: string;
   icon?: React.ReactNode;
+  trailingBadge?: React.ReactNode;
   children: SecItemDef[];
 }
 interface SecLabelDef {
@@ -147,15 +153,31 @@ const APP_SEC_CONFIG: Record<string, AppSecConfig> = {
     ],
   },
   'marketplace': {
-    defaultId: 'mp-pay-rate',
+    defaultId: 'mp-shift-marketplace',
     defaultPageId: 'mp-community',
     entries: [
-      { kind: 'label', id: 'mp-my-apps-label', label: 'My apps' },
-      { id: 'mp-pay-rate',    label: 'Pay rate calculator',  icon: <BarChart02Icon size={16} /> },
-      { id: 'mp-onboarding',  label: 'Onboarding tracker',   icon: <ClipboardCheckIcon size={16} /> },
-      { id: 'mp-shift-swap',  label: 'Shift swap log',       icon: <GitBranch01Icon size={16} /> },
-      { id: 'mp-compliance',  label: 'Compliance checklist', icon: <CheckCircleIcon size={16} /> },
-      { id: 'mp-equipment',   label: 'Equipment audit',      icon: <ListBulletIcon size={16} /> },
+      { group: {
+        id: 'mp-team-apps', label: 'Team apps', icon: <Users03Icon size={16} />,
+        trailingBadge: <Tag size="sm" variant="subtle" color="neutral">5</Tag>,
+        children: [
+          { id: 'mp-shift-marketplace',  label: 'Shift Marketplace',           icon: getMarketplaceAppIcon('mp-shift-marketplace'),  pinnable: true },
+          { id: 'mp-availability',       label: 'Employee Availability',       icon: getMarketplaceAppIcon('mp-availability'),       pinnable: true },
+          { id: 'mp-time-clock',         label: 'Smart Time Clock',            icon: getMarketplaceAppIcon('mp-time-clock'),         pinnable: true },
+          { id: 'mp-messaging',          label: 'Messaging Center',            icon: getMarketplaceAppIcon('mp-messaging'),          pinnable: true },
+          { id: 'mp-client-portal',      label: 'Client Staffing Portal',      icon: getMarketplaceAppIcon('mp-client-portal'),      pinnable: true },
+        ],
+      }},
+      { group: {
+        id: 'mp-background-apps', label: 'Background apps', icon: <ZapIcon size={16} />,
+        trailingBadge: <Tag size="sm" variant="subtle" color="neutral">5</Tag>,
+        children: [
+          { id: 'mp-labor-cost',         label: 'Labor Cost Forecasting',      icon: getMarketplaceAppIcon('mp-labor-cost'),         pinnable: true },
+          { id: 'mp-compliance-monitor', label: 'Compliance Monitor',          icon: getMarketplaceAppIcon('mp-compliance-monitor'), pinnable: true },
+          { id: 'mp-recruiting',         label: 'Recruiting Pipeline',         icon: getMarketplaceAppIcon('mp-recruiting'),         pinnable: true },
+          { id: 'mp-credential',         label: 'Credential Tracker',          icon: getMarketplaceAppIcon('mp-credential'),         pinnable: true },
+          { id: 'mp-performance',        label: 'Performance Insights',        icon: getMarketplaceAppIcon('mp-performance'),        pinnable: true },
+        ],
+      }},
     ],
   },
   'app-tool': {
@@ -246,9 +268,28 @@ function buildMenuEntries(
   secActiveId: string,
   setSecActiveId: (id: string) => void,
   isPageActive: boolean,
+  pinnedAppIds: string[] = [],
+  onTogglePin?: (id: string) => void,
 ): SecondaryNavMenuEntry[] {
   const config = APP_SEC_CONFIG[appId];
   if (!config) return [];
+
+  const renderPinButton = (id: string) => {
+    const isPinned = pinnedAppIds.includes(id);
+    return (
+      <PinButton
+        type="button"
+        $pinned={isPinned}
+        aria-label={isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
+        onClick={(e) => {
+          e.stopPropagation();
+          onTogglePin?.(id);
+        }}
+      >
+        <Pin01Icon size={14} />
+      </PinButton>
+    );
+  };
 
   return config.entries.map(entry => {
     if ('group' in entry) {
@@ -259,6 +300,7 @@ function buildMenuEntries(
           id: g.id,
           label: g.label,
           icon: g.icon,
+          trailingBadge: g.trailingBadge,
           defaultExpanded: true,
           children: g.children.map(child => ({
             id: child.id,
@@ -266,6 +308,7 @@ function buildMenuEntries(
             icon: child.icon,
             isActive: !isPageActive && secActiveId === child.id,
             onClick: () => setSecActiveId(child.id),
+            trailingSlot: child.pinnable && onTogglePin ? renderPinButton(child.id) : undefined,
           })),
         },
       };
@@ -289,6 +332,32 @@ function buildMenuEntries(
     };
   });
 }
+
+const PinButton = styled.button<{ $pinned: boolean }>`
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: ${p => (p.$pinned ? 'var(--color-content-primary)' : 'var(--color-content-tertiary)')};
+  opacity: ${p => (p.$pinned ? 1 : 0.5)};
+  transition: background 120ms ease, color 120ms ease, opacity 120ms ease;
+  margin-right: 4px;
+
+  &:hover {
+    opacity: 1;
+    background: var(--color-bg-tertiary, rgba(21, 21, 21, 0.08));
+    color: var(--color-content-primary);
+  }
+
+  &:focus-visible {
+    opacity: 1;
+    box-shadow: inset 0 0 0 2px var(--color-border-focus, #1969fe);
+  }
+`;
 
 /** Look up label + optional group parent label for a secActiveId */
 function lookupSecItem(appId: string, secActiveId: string): { label: string; parentLabel?: string } | undefined {
@@ -316,7 +385,7 @@ const APP_LABELS: Record<string, string> = {
   'inbox':       'Inbox',
   'invoice':     'Invoice',
   'ai-home':     'AI Home',
-  'marketplace': 'Last Mile Apps',
+  'marketplace': 'Marketplace',
   'app-tool':    'Custom App',
   'add-app':     'Add App',
   'docs':        'Document Studio',
@@ -428,6 +497,8 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
   const [activePageId, setActivePageId] = useState<string | null>(null);
+  // Marketplace pinning: ids of apps the user has pinned to the primary nav.
+  const [pinnedAppIds, setPinnedAppIds] = useState<string[]>([]);
   // AI Home secondary-nav body toggle: 'list' shows the existing menu
   // items, 'ai' replaces the body with the inline AI chat panel.
   const [aiHomeView, setAiHomeView] = useState<'list' | 'ai'>('list');
@@ -510,6 +581,52 @@ export default function App() {
       isActive: item.id === activeId,
       onClick: () => handleAppSelect(item.id),
     }));
+
+  // Build the marketplace tool nav with any pinned-app icons inserted right
+  // after the Marketplace entry.
+  const lookupMarketplaceItem = (id: string): SecItemDef | undefined => {
+    const config = APP_SEC_CONFIG['marketplace'];
+    if (!config) return undefined;
+    for (const entry of config.entries) {
+      if ('group' in entry) {
+        const found = entry.group.children.find(c => c.id === id);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  };
+
+  const handleTogglePin = (id: string) => {
+    setPinnedAppIds(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
+  };
+
+  const handlePinnedClick = (id: string) => {
+    setActiveId('marketplace');
+    setSecActiveId(id);
+    setActivePageId(null);
+  };
+
+  const pinnedToolItems: PrimaryNavItem[] = pinnedAppIds
+    .map(id => {
+      const item = lookupMarketplaceItem(id);
+      if (!item) return null;
+      return {
+        id: `pinned-${id}`,
+        label: item.label,
+        icon: item.icon,
+        isActive: activeId === 'marketplace' && secActiveId === id && activePageId !== 'mp-community',
+        onClick: () => handlePinnedClick(id),
+      } as PrimaryNavItem;
+    })
+    .filter((x): x is PrimaryNavItem => x !== null);
+
+  const toolItemsWithPins: PrimaryNavItem[] = (() => {
+    const base = withActive(TOOL_ITEMS);
+    if (pinnedToolItems.length === 0) return base;
+    const idx = base.findIndex(it => it.id === 'marketplace');
+    if (idx === -1) return [...base, ...pinnedToolItems];
+    return [...base.slice(0, idx + 1), ...pinnedToolItems, ...base.slice(idx + 1)];
+  })();
 
   // TopNav heading: no app-level prefix (shown in SecondaryNav already)
   // — top-level item: just the item label
@@ -613,7 +730,7 @@ export default function App() {
   // bottom) so users see the same structure in both chromes.
   const mobileModuleGroups: MobileModuleGroup[] = [
     { id: 'main',   label: 'Workspace', items: withActive(PRIMARY_ITEMS) },
-    { id: 'tools',  label: 'Tools',     items: withActive(TOOL_ITEMS) },
+    { id: 'tools',  label: 'Tools',     items: toolItemsWithPins },
     { id: 'bottom', label: 'Apps',      items: withActive(BOTTOM_ITEMS) },
   ];
 
@@ -621,7 +738,7 @@ export default function App() {
     <AppShell
       // PrimaryNav
       items={withActive(PRIMARY_ITEMS)}
-      toolItems={withActive(TOOL_ITEMS)}
+      toolItems={toolItemsWithPins}
       bottomItems={withActive(BOTTOM_ITEMS)}
       workspace={{ id: 'acme', name: '{Account.name}', initial: 'A' }}
       user={{ name: 'Tito Goldstein', initials: 'TG', avatarColor: '#ee9c2d' }}
@@ -629,7 +746,7 @@ export default function App() {
       aiItemId="ai-home"
       // SecondaryNav
       secNavHeading={APP_LABELS[activeId] ?? activeId}
-      menuEntries={buildMenuEntries(activeId, secActiveId, handleSecNavClick, activePageId !== null)}
+      menuEntries={buildMenuEntries(activeId, secActiveId, handleSecNavClick, activePageId !== null, pinnedAppIds, handleTogglePin)}
       pageEntries={pageEntries}
       showSecondaryNav={true}
       showSearch

@@ -33,12 +33,16 @@ export interface SecondaryNavMenuItem {
   icon?: ReactNode;
   isActive?: boolean;
   onClick?: () => void;
+  /** Optional trailing element (e.g. a pin / dismiss button) shown on the right edge. */
+  trailingSlot?: ReactNode;
 }
 
 export interface SecondaryNavMenuGroup {
   id: string;
   label: string;
   icon?: ReactNode;
+  /** Optional trailing element rendered before the chevron (badge, tag, etc.). */
+  trailingBadge?: ReactNode;
   defaultExpanded?: boolean;
   children: SecondaryNavMenuItem[];
 }
