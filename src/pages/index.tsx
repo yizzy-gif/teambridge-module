@@ -1236,51 +1236,29 @@ const RatingStar = styled.span`
 const DialogBody = styled.div`
   display: flex;
   flex-direction: column;
-  gap: var(--space-8, 32px);
+  gap: var(--space-4, 16px);
 `;
 
 const ScreenshotFrame = styled.div`
-  /* Plain pass-through wrapper — the soft halo lives inside Screenshot now. */
+  /* Plain pass-through wrapper. */
 `;
 
 const Screenshot = styled.div`
   width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: var(--radius-md, 12px);
-  border: 1px solid var(--color-border-opaque);
-  background: var(--color-bg-primary);
-  display: flex;
-  align-items: stretch;
-  justify-content: stretch;
   position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  padding: var(--space-5, 20px);
-
-  /* Blurred AI-tinted halo painted on a pseudo behind the inner screenshot
-     content. Clipped by the parent's overflow: hidden so it stays inside
-     the frame. */
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(ellipse 60% 90% at 0% 50%, rgba(140, 79, 226, 0.35), transparent 70%),
-      radial-gradient(ellipse 60% 90% at 100% 50%, rgba(255, 200, 87, 0.3), transparent 70%);
-    filter: blur(40px);
-    z-index: -1;
-    pointer-events: none;
-  }
+  background: transparent;
+  /* Opacity fade: fully opaque until 75%, then fades to transparent over the
+     final 25% of the image height. */
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 75%, rgba(0, 0, 0, 0) 100%);
+          mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 75%, rgba(0, 0, 0, 0) 100%);
 
   & > svg,
   & > img {
     width: 100%;
-    height: 100%;
+    height: auto;
     display: block;
-    border-radius: var(--radius-sm, 6px);
-    box-shadow:
-      0 1px 2px rgba(15, 23, 42, 0.04),
-      0 18px 40px rgba(15, 23, 42, 0.10);
+    background: transparent;
+    border-radius: 6px;
   }
 `;
 
