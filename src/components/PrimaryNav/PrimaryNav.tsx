@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { Badge } from 'alloy-design-system';
 import type { PrimaryNavItem, UserProfile, Workspace } from '../../types/nav';
 import {
   NavRoot, NavInner, NavTop, NavBottom,
   WorkspaceSelector, WorkspaceLogo, WorkspaceName, ChevronWrap,
   NavGroup, NavItemWrapper, NavItemBtn, NavItemLeadingIcon, NavItemLabelText,
-  UnreadDot, NavDivider, NewBadge,
+  UnreadDot, NavDivider,
   UserRow, UserAvatar, UserName,
 } from './PrimaryNav.styles';
 import { ChevronDownIcon, SettingsIcon } from './NavIcons';
@@ -42,7 +43,7 @@ function NavItem({
         {isExpanded && (
           <NavItemLabelText>{item.label}</NavItemLabelText>
         )}
-        {isExpanded && showNewBadge && <NewBadge>New</NewBadge>}
+        {isExpanded && showNewBadge && <Badge variant="primary">New</Badge>}
       </NavItemBtn>
     </NavItemWrapper>
   );

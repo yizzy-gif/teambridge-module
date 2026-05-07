@@ -29,6 +29,7 @@ import {
   DocumentStudioPage, FormPage, TasksPage, PolicyPage,
   AutomationPage, PayrollPage, ESignPage,
   getMarketplaceAppIcon,
+  MP_NAV_ID_TO_COMMUNITY,
 } from './pages';
 import { AISpecialistsListPage } from './pages/AIHome/AISpecialists';
 import { AISpecialistPersonaDetail } from './pages/AIHome/AISpecialists/PersonaDetail';
@@ -48,9 +49,7 @@ const PRIMARY_ITEMS: Omit<PrimaryNavItem, 'isActive' | 'onClick'>[] = [
 ];
 
 const TOOL_ITEMS: Omit<PrimaryNavItem, 'isActive' | 'onClick'>[] = [
-  { id: 'marketplace', label: 'Marketplace', icon: <MarketplaceIcon /> },
-  { id: 'app-tool',    label: 'Custom App',  icon: <AppToolIcon /> },
-  { id: 'add-app',     label: 'Add App',     icon: <PlusIcon /> },
+  { id: 'apps', label: 'App', icon: <MarketplaceIcon /> },
 ];
 
 const BOTTOM_ITEMS: Omit<PrimaryNavItem, 'isActive' | 'onClick'>[] = [
@@ -152,8 +151,8 @@ const APP_SEC_CONFIG: Record<string, AppSecConfig> = {
       }},
     ],
   },
-  'marketplace': {
-    defaultId: 'mp-shift-marketplace',
+  'apps': {
+    defaultId: 'my-apps',
     entries: [
       { group: {
         id: 'mp-team-apps', label: 'Team apps', icon: <Users03Icon size={16} />,
@@ -384,7 +383,7 @@ const APP_LABELS: Record<string, string> = {
   'inbox':       'Inbox',
   'invoice':     'Invoice',
   'ai-home':     'AI Home',
-  'marketplace': 'Marketplace',
+  'apps': 'Apps',
   'app-tool':    'Custom App',
   'add-app':     'Add App',
   'docs':        'Document Studio',
@@ -466,6 +465,12 @@ function PageContent({
   onOpenCommunity,
   onOpenInstalled,
   onOpenApp,
+  pinnedAppIds,
+  onTogglePin,
+  installedAppIds,
+  onInstallApp,
+  onUninstallApp,
+  lastOpenedAtById,
 }: {
   activeId: string;
   secActiveId: string;
@@ -475,6 +480,12 @@ function PageContent({
   onOpenCommunity?: () => void;
   onOpenInstalled?: () => void;
   onOpenApp?: (appId: string) => void;
+  pinnedAppIds?: string[];
+  onTogglePin?: (appId: string) => void;
+  installedAppIds?: string[];
+  onInstallApp?: (appId: string) => void;
+  onUninstallApp?: (appId: string) => void;
+  lastOpenedAtById?: Record<string, number>;
 }) {
   switch (activeId) {
     case 'home':        return <HomePage />;
@@ -482,19 +493,32 @@ function PageContent({
     case 'inbox':       return <InboxPage />;
     case 'invoice':     return <InvoicePage />;
     case 'ai-home':     return <AIHomeContent secActiveId={secActiveId} selectedPersonaId={selectedPersonaId} setSelectedPersonaId={setSelectedPersonaId} />;
-    case 'marketplace':
-      if (activePageId === 'mp-community') return <MarketplacePage />;
-      if (activePageId === 'mp-installed') return <InstalledAppsPage onOpenCommunity={onOpenCommunity} onOpenApp={onOpenApp} />;
+    case 'apps':
+      if (secActiveId === 'app-marketplace' && !activePageId?.startsWith('app:')) {
+        return (
+          <MarketplacePage
+            installedAppIds={installedAppIds}
+            onInstallApp={onInstallApp}
+            onUninstallApp={onUninstallApp}
+            onOpenApp={onOpenApp}
+          />
+        );
+      }
       if (activePageId?.startsWith('app:')) {
         const appId = activePageId.slice(4);
         const appLabel = COMMUNITY_APP_LABELS[appId] ?? 'App';
         return <MarketplaceAppPage name={appLabel} />;
       }
+      // Installed Apps is the marketplace landing page.
       return (
-        <MarketplaceLandingPage
+        <InstalledAppsPage
           onOpenCommunity={onOpenCommunity}
-          onOpenInstalled={onOpenInstalled}
           onOpenApp={onOpenApp}
+          pinnedAppIds={pinnedAppIds}
+          onTogglePin={onTogglePin}
+          installedAppIds={installedAppIds}
+          onUninstallApp={onUninstallApp}
+          lastOpenedAtById={lastOpenedAtById}
         />
       );
     case 'app-tool':    return <CustomAppPage />;
@@ -520,6 +544,23 @@ export default function App() {
   const [activePageId, setActivePageId] = useState<string | null>(null);
   // Marketplace pinning: ids of apps the user has pinned to the primary nav.
   const [pinnedAppIds, setPinnedAppIds] = useState<string[]>([]);
+  // Apps the user has installed from the marketplace. Empty by default —
+  // populated when the user clicks "Use App" in the preview dialog.
+  const [installedAppIds, setInstalledAppIds] = useState<string[]>([]);
+  // Timestamp (ms epoch) of the last interaction (install or open) per app id.
+  // Drives the "Just now / X minutes ago" label on the My Apps list.
+  const [lastOpenedAtById, setLastOpenedAtById] = useState<Record<string, number>>({});
+  const handleInstallApp = (id: string) => {
+    setInstalledAppIds(prev => (prev.includes(id) ? prev : [...prev, id]));
+    setLastOpenedAtById(prev => ({ ...prev, [id]: Date.now() }));
+  };
+  const handleUninstallApp = (id: string) => {
+    setInstalledAppIds(prev => prev.filter(p => p !== id));
+    setLastOpenedAtById(prev => { const { [id]: _, ...rest } = prev; return rest; });
+  };
+  const handleAppOpened = (id: string) => {
+    setLastOpenedAtById(prev => ({ ...prev, [id]: Date.now() }));
+  };
   // AI Home secondary-nav body toggle: 'list' shows the existing menu
   // items, 'ai' replaces the body with the inline AI chat panel.
   const [aiHomeView, setAiHomeView] = useState<'list' | 'ai'>('list');
@@ -569,18 +610,18 @@ export default function App() {
   }
 
   const pageEntries: SecondaryNavPageEntry[] = [
-    ...(activeId === 'marketplace'
+    ...(activeId === 'apps'
       ? [
           {
-            id: 'mp-community',
-            label: 'Community Apps',
+            id: 'app-marketplace',
+            label: 'App Marketplace',
             icon: <Users03Icon size={16} />,
-            isActive: activePageId === 'mp-community',
-            onClick: () => setActivePageId('mp-community'),
+            isActive: secActiveId === 'app-marketplace',
+            onClick: () => { setSecActiveId('app-marketplace'); setActivePageId(null); },
           },
         ]
       : []),
-    ...(activeId === 'home' || activeId === 'marketplace'
+    ...(activeId === 'home' || activeId === 'apps'
       ? []
       : [
           {
@@ -599,14 +640,18 @@ export default function App() {
   const withActive = (items: typeof PRIMARY_ITEMS): PrimaryNavItem[] =>
     items.map(item => ({
       ...item,
-      isActive: item.id === activeId,
+      isActive:
+        item.id === activeId &&
+        // When a pinned app's page is open, the pinned tool item owns the
+        // active state — don't also light up the parent Marketplace item.
+        !(item.id === 'apps' && activePageId?.startsWith('app:')),
       onClick: () => handleAppSelect(item.id),
     }));
 
   // Build the marketplace tool nav with any pinned-app icons inserted right
   // after the Marketplace entry.
   const lookupMarketplaceItem = (id: string): SecItemDef | undefined => {
-    const config = APP_SEC_CONFIG['marketplace'];
+    const config = APP_SEC_CONFIG['apps'];
     if (!config) return undefined;
     for (const entry of config.entries) {
       if ('group' in entry) {
@@ -622,20 +667,23 @@ export default function App() {
   };
 
   const handlePinnedClick = (id: string) => {
-    setActiveId('marketplace');
+    setActiveId('apps');
     setSecActiveId(id);
-    setActivePageId(null);
+    const communityId = MP_NAV_ID_TO_COMMUNITY[id];
+    setActivePageId(communityId ? `app:${communityId}` : null);
   };
 
   const pinnedToolItems: PrimaryNavItem[] = pinnedAppIds
     .map(id => {
       const item = lookupMarketplaceItem(id);
       if (!item) return null;
+      const communityId = MP_NAV_ID_TO_COMMUNITY[id];
+      const expectedPageId = communityId ? `app:${communityId}` : null;
       return {
         id: `pinned-${id}`,
         label: item.label,
         icon: item.icon,
-        isActive: activeId === 'marketplace' && secActiveId === id && activePageId !== 'mp-community',
+        isActive: activeId === 'apps' && activePageId === expectedPageId,
         onClick: () => handlePinnedClick(id),
       } as PrimaryNavItem;
     })
@@ -644,7 +692,7 @@ export default function App() {
   const toolItemsWithPins: PrimaryNavItem[] = (() => {
     const base = withActive(TOOL_ITEMS);
     if (pinnedToolItems.length === 0) return base;
-    const idx = base.findIndex(it => it.id === 'marketplace');
+    const idx = base.findIndex(it => it.id === 'apps');
     if (idx === -1) return [...base, ...pinnedToolItems];
     return [...base.slice(0, idx + 1), ...pinnedToolItems, ...base.slice(idx + 1)];
   })();
@@ -656,44 +704,32 @@ export default function App() {
   const secMeta = lookupSecItem(activeId, secActiveId);
   const topNavHeading: React.ReactNode = (() => {
     if (activePageId === 'usage') return <HeadingText>Usage</HeadingText>;
-    if (activeId === 'marketplace' && activePageId === 'mp-community') {
+    if (activeId === 'apps' && secActiveId === 'app-marketplace' && !activePageId?.startsWith('app:')) {
       return (
         <Breadcrumb
           separator="chevron"
           items={[
-            { label: 'Marketplace', onClick: () => setActivePageId(null) },
-            { label: 'Community Apps' },
+            { label: 'Apps', onClick: () => { setSecActiveId('my-apps'); setActivePageId(null); } },
+            { label: 'App Marketplace' },
           ]}
         />
       );
     }
-    if (activeId === 'marketplace' && activePageId === 'mp-installed') {
-      return (
-        <Breadcrumb
-          separator="chevron"
-          items={[
-            { label: 'Marketplace', onClick: () => setActivePageId(null) },
-            { label: 'Installed Apps' },
-          ]}
-        />
-      );
-    }
-    if (activeId === 'marketplace' && activePageId?.startsWith('app:')) {
+    if (activeId === 'apps' && activePageId?.startsWith('app:')) {
       const appId = activePageId.slice(4);
       const appLabel = COMMUNITY_APP_LABELS[appId] ?? 'App';
       return (
         <Breadcrumb
           separator="chevron"
           items={[
-            { label: 'Marketplace', onClick: () => setActivePageId(null) },
-            { label: 'Installed Apps', onClick: () => setActivePageId('mp-installed') },
+            { label: 'Apps', onClick: () => setActivePageId(null) },
             { label: appLabel },
           ]}
         />
       );
     }
-    if (activeId === 'marketplace') {
-      return <HeadingText>Marketplace</HeadingText>;
+    if (activeId === 'apps') {
+      return <HeadingText>Apps</HeadingText>;
     }
     if (activeId === 'ai-home' && secActiveId === 'ai-personas' && selectedPersonaId) {
       const persona = mockPersonas.find(p => p.id === selectedPersonaId);
@@ -727,8 +763,8 @@ export default function App() {
   const mobilePrimaryLabel = activePageId === 'usage' ? 'Usage' : (APP_LABELS[activeId] ?? activeId);
   const mobileSecondaryLabel = activePageId === 'usage'
     ? undefined
-    : activeId === 'marketplace' && activePageId === 'mp-community'
-      ? 'Community Apps'
+    : activeId === 'apps' && secActiveId === 'app-marketplace' && !activePageId?.startsWith('app:')
+      ? 'App Marketplace'
       : secMeta
         ? (secMeta.parentLabel ? `${secMeta.parentLabel} / ${secMeta.label}` : secMeta.label)
         : undefined;
@@ -805,7 +841,7 @@ export default function App() {
       secNavHeading={APP_LABELS[activeId] ?? activeId}
       menuEntries={buildMenuEntries(activeId, secActiveId, handleSecNavClick, activePageId !== null, pinnedAppIds, handleTogglePin)}
       pageEntries={pageEntries}
-      showSecondaryNav={activeId !== 'marketplace'}
+      showSecondaryNav={activeId !== 'apps'}
       showSearch
       searchValue={search}
       onSearchChange={setSearch}
@@ -813,9 +849,14 @@ export default function App() {
       bodyContent={aiHomeBody}
       // TopNav — only shows current secondary selection (app shown in SecNav)
       heading={topNavHeading}
-      actions={activeId === 'ai-home' || activeId === 'marketplace' || activePageId === 'usage' ? [] : DEFAULT_TOP_NAV_ACTIONS}
+      actions={activeId === 'ai-home' || activeId === 'apps' || activePageId === 'usage' ? [] : DEFAULT_TOP_NAV_ACTIONS}
       showActivityButton
       showPonderButton
+      noBorder={
+        activeId === 'apps' &&
+        secActiveId === 'app-marketplace' &&
+        !activePageId?.startsWith('app:')
+      }
       // Mobile chrome opt-in
       mobileNav={{
         activeId,
@@ -838,9 +879,15 @@ export default function App() {
           activePageId={activePageId}
           selectedPersonaId={selectedPersonaId}
           setSelectedPersonaId={setSelectedPersonaId}
-          onOpenCommunity={() => setActivePageId('mp-community')}
-          onOpenInstalled={() => setActivePageId('mp-installed')}
-          onOpenApp={(id) => setActivePageId(`app:${id}`)}
+          onOpenCommunity={() => { setSecActiveId('app-marketplace'); setActivePageId(null); }}
+          onOpenInstalled={() => setActivePageId(null)}
+          onOpenApp={(id) => { handleAppOpened(id); setActivePageId(`app:${id}`); }}
+          pinnedAppIds={pinnedAppIds}
+          onTogglePin={handleTogglePin}
+          installedAppIds={installedAppIds}
+          onInstallApp={handleInstallApp}
+          onUninstallApp={handleUninstallApp}
+          lastOpenedAtById={lastOpenedAtById}
         />
       )}
     </AppShell>

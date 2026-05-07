@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import {
   Button, Tag, ListItem, Eyebrow,
@@ -7,6 +7,8 @@ import {
   Dialog, DialogHeader, DialogContent, DialogFooter,
   CheckCircleIcon, ZapIcon,
   SearchSmIcon, XIcon,
+  Pin01Icon, Download01Icon, ClockIcon,
+  Badge as AlloyBadge,
   AIComposerInput,
   ComposerActions, ComposerSendButton,
 } from 'alloy-design-system';
@@ -343,6 +345,55 @@ const MpPage = styled(Page)`
   padding-bottom: var(--space-16, 64px);
 `;
 
+const MlLandingPage = styled(MpPage)`
+  position: relative;
+  isolation: isolate;
+  /* Reserve room for the 12px bottom margin so the parent doesn't need
+     to scroll (which would surface a vertical scrollbar gap on the right). */
+  height: calc(100% - 12px);
+  margin-left: 12px;
+  margin-right: 12px;
+  margin-bottom: 12px;
+  padding-bottom: var(--space-6, 24px);
+  border-radius: 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-color: transparent;
+  background-image: linear-gradient(180deg, var(--color-bg-secondary, #F6F7F9) 0%, transparent 100%);
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url(${marketplaceHeroBg});
+    background-repeat: no-repeat;
+    background-position: 50% 0%;
+    background-size: 100% auto;
+    transform-origin: 50% 0%;
+    -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 100%);
+            mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 100%);
+    z-index: -1;
+    pointer-events: none;
+    animation: mlHeroBreathe 32s ease-in-out infinite;
+  }
+
+  @keyframes mlHeroBreathe {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.08); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::before { animation: none; }
+  }
+
+  /* Dark mode: swap to dark variant of the same SVG (transparent base, screen blend) */
+  @media (prefers-color-scheme: dark) {
+    &::before {
+      background-image: url(${marketplaceHeroBgDark});
+    }
+  }
+`;
+
 const MpHero = styled.div`
   display: flex;
   flex-direction: column;
@@ -479,12 +530,17 @@ const PopularGrid = styled.div`
 
 const PopularListItem = styled(ListItem)`
   border-radius: 12px;
-  --li-hover-bg: var(--color-bg-secondary);
+  --li-hover-bg: var(--color-bg-tertiary);
 
   & [class*='_description_'] {
     white-space: normal;
     overflow: visible;
     text-overflow: clip;
+  }
+
+  /* Subtle scale-up on the app shape when hovering the row. */
+  &:hover [data-role='popular-icon'] > * {
+    transform: scale(1.12);
   }
 `;
 
@@ -518,6 +574,10 @@ const PopularIcon = styled.div`
   & svg {
     width: 24px;
     height: 24px;
+  }
+
+  & > * {
+    transition: transform var(--duration-slow, 250ms) var(--ease-out, cubic-bezier(0, 0, 0.2, 1));
   }
 `;
 
@@ -587,6 +647,10 @@ const FeaturedCard = styled.div`
     background: var(--color-bg-tertiary);
     border-color: var(--color-border-hover);
   }
+
+  &:hover [data-role='featured-icon'] > * {
+    transform: scale(1.12);
+  }
 `;
 
 const FeaturedIcon = styled.div`
@@ -598,6 +662,11 @@ const FeaturedIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+
+  /* Inner shape scales up on card hover for a subtle response. */
+  & > * {
+    transition: transform var(--duration-slow, 250ms) var(--ease-out, cubic-bezier(0, 0, 0.2, 1));
+  }
 `;
 
 const FeaturedBody = styled.div`
@@ -691,12 +760,12 @@ const APP_ID_TO_SHAPE: Record<string, (size: number) => React.ReactNode> = {
   'mp-availability':       s => <ShapeHexagon  color="var(--color-green-content-secondary, #7BB97A)"  size={s} />,
   'mp-time-clock':         s => <ShapeDiamond  color="var(--color-orange-content-secondary, #E08B4A)" size={s} />,
   'mp-messaging':          s => <ShapeFlower   color="var(--color-pink-content-secondary, #E68FB6)"   size={s} />,
-  'mp-client-portal':      s => <ShapeStar     color="var(--color-azure-content-secondary, #5B3DF0)"  size={s} />,
+  'mp-client-portal':      s => <ShapeHexagon  color="var(--color-azure-content-secondary, #5B3DF0)"  size={s} />,
   'mp-labor-cost':         s => <ShapeSquare   color="var(--color-purple-content-secondary, #9C8AE0)" size={s} />,
   'mp-compliance-monitor': s => <ShapeOctagon  color="var(--color-red-content-secondary, #D9534F)"    size={s} />,
   'mp-recruiting':         s => <ShapePentagon color="var(--color-yellow-content-secondary, #E8C547)" size={s} />,
   'mp-credential':         s => <ShapeTriangle color="var(--color-matcha-content-secondary, #3CB6A8)" size={s} />,
-  'mp-performance':        s => <ShapeStar     color="var(--color-purple-content-secondary, #9C8AE0)" size={s} />,
+  'mp-performance':        s => <ShapeTriangle color="var(--color-purple-content-secondary, #9C8AE0)" size={s} />,
 };
 
 export function getMarketplaceAppIcon(id: string, size = 16): React.ReactNode {
@@ -730,6 +799,8 @@ interface AppDef {
   rating: number;
   shape: React.ReactNode;
   preview: AppPreview;
+  /** Background services run without UI; the preview dialog skips the screenshot. */
+  appType?: 'team' | 'background';
 }
 
 const COMMUNITY_APPS: AppDef[] = [
@@ -890,7 +961,7 @@ const COMMUNITY_APPS: AppDef[] = [
     author: 'Daniela Cruz',
     installs: '31',
     rating: 4.7,
-    shape: <ShapeStar color="var(--color-azure-content-secondary, #5B3DF0)" />,
+    shape: <ShapeHexagon color="var(--color-azure-content-secondary, #5B3DF0)" />,
     preview: {
       tagline: 'Give clients a portal to request, approve, and track staffing.',
       recommendedFor: ['staffing agencies', 'security', 'events', 'facilities'],
@@ -932,7 +1003,7 @@ const COMMUNITY_APPS: AppDef[] = [
     author: 'Marcus Chen',
     installs: '73',
     rating: 4.0,
-    shape: <ShapeStar color="var(--color-purple-content-secondary, #9C8AE0)" />,
+    shape: <ShapeTriangle color="var(--color-purple-content-secondary, #9C8AE0)" />,
     preview: {
       tagline: 'Measure attendance, reliability, and workforce performance.',
       recommendedFor: ['operations leaders', 'account managers', 'executives'],
@@ -941,6 +1012,164 @@ const COMMUNITY_APPS: AppDef[] = [
       setupComplexity: 'medium',
       estimatedImpact: 'medium',
       status: 'optional',
+    },
+  },
+];
+
+// Background services — automated apps that run without a user-facing UI.
+const BACKGROUND_MARKETPLACE_APPS: AppDef[] = [
+  {
+    id: 'auto_shift_optimizer',
+    name: 'Auto Shift Optimizer',
+    description: 'Automatically balances schedules based on labor demand, overtime risk, and worker availability.',
+    category: 'Scheduling',
+    appType: 'background',
+    targetUsers: ['System'],
+    coreFeatures: ['Auto-fill open shifts', 'Minimize overtime', 'Balance worker hours', 'Optimize labor coverage', 'Apply scheduling rules'],
+    author: 'Teambridge',
+    installs: '128',
+    rating: 4.8,
+    shape: <ShapeCircle color="var(--color-green-content-secondary, #7BB97A)" />,
+    preview: {
+      tagline: 'Automatically balance schedules for cost and coverage.',
+      recommendedFor: ['staffing', 'hospitality', 'healthcare'],
+      capabilities: ['Auto-fill open shifts', 'Minimize overtime', 'Balance worker hours', 'Optimize labor coverage', 'Apply scheduling rules'],
+      businessValue: ['Reduce overtime spend', 'Improve coverage', 'Free up scheduler time'],
+      setupComplexity: 'medium',
+      estimatedImpact: 'high',
+      status: 'recommended',
+    },
+  },
+  {
+    id: 'payroll_export_engine',
+    name: 'Payroll Export Engine',
+    description: 'Processes approved timesheets and generates payroll-ready exports automatically.',
+    category: 'Payroll',
+    appType: 'background',
+    targetUsers: ['System'],
+    coreFeatures: ['Aggregate timesheets', 'Calculate regular and overtime hours', 'Generate payroll exports', 'Validate missing punches', 'Detect payroll anomalies'],
+    author: 'Teambridge',
+    installs: '109',
+    rating: 4.7,
+    shape: <ShapeSquare color="var(--color-matcha-content-secondary, #3CB6A8)" />,
+    preview: {
+      tagline: 'Turn approved timesheets into payroll-ready exports.',
+      recommendedFor: ['staffing', 'finance', 'operations'],
+      capabilities: ['Aggregate timesheets', 'Calculate regular and overtime hours', 'Generate payroll exports', 'Validate missing punches', 'Detect payroll anomalies'],
+      businessValue: ['Cut manual payroll work', 'Reduce errors', 'Speed up payroll cycles'],
+      setupComplexity: 'medium',
+      estimatedImpact: 'high',
+      status: 'recommended',
+    },
+  },
+  {
+    id: 'attendance_anomaly_detector',
+    name: 'Attendance Anomaly Detector',
+    description: 'Monitors attendance patterns and flags suspicious or unusual behavior automatically.',
+    category: 'Attendance',
+    appType: 'background',
+    targetUsers: ['System'],
+    coreFeatures: ['Detect repeated late arrivals', 'Identify missed punches', 'Flag unusual clock-in locations', 'Track no-show trends', 'Generate risk scores'],
+    author: 'Teambridge',
+    installs: '74',
+    rating: 4.6,
+    shape: <ShapeOctagon color="var(--color-orange-content-secondary, #E08B4A)" />,
+    preview: {
+      tagline: 'Surface attendance issues before they become a problem.',
+      recommendedFor: ['operations', 'compliance', 'staffing'],
+      capabilities: ['Detect repeated late arrivals', 'Identify missed punches', 'Flag unusual clock-in locations', 'Track no-show trends', 'Generate risk scores'],
+      businessValue: ['Reduce no-shows', 'Catch time-theft early', 'Improve workforce reliability'],
+      setupComplexity: 'low',
+      estimatedImpact: 'medium',
+      status: 'optional',
+    },
+  },
+  {
+    id: 'credential_expiration_monitor',
+    name: 'Credential Expiration Monitor',
+    description: 'Automatically tracks certification expirations and prevents invalid worker assignments.',
+    category: 'Compliance',
+    appType: 'background',
+    targetUsers: ['System'],
+    coreFeatures: ['Monitor expiration dates', 'Send renewal reminders', 'Restrict non-compliant workers', 'Track uploaded documents', 'Generate compliance reports'],
+    author: 'Teambridge',
+    installs: '63',
+    rating: 4.5,
+    shape: <ShapeTriangle color="var(--color-blue-content-secondary, #4A8AB8)" />,
+    preview: {
+      tagline: 'Keep credentials current and assignments compliant.',
+      recommendedFor: ['healthcare', 'security', 'compliance'],
+      capabilities: ['Monitor expiration dates', 'Send renewal reminders', 'Restrict non-compliant workers', 'Track uploaded documents', 'Generate compliance reports'],
+      businessValue: ['Avoid compliance violations', 'Prevent invalid assignments', 'Automate renewal nudges'],
+      setupComplexity: 'low',
+      estimatedImpact: 'high',
+      status: 'recommended',
+    },
+  },
+  {
+    id: 'smart_notification_router',
+    name: 'Smart Notification Router',
+    description: 'Routes notifications to the right employees based on urgency, role, and shift context.',
+    category: 'Communication',
+    appType: 'background',
+    targetUsers: ['System'],
+    coreFeatures: ['Priority-based notifications', 'Role-aware targeting', 'SMS and push delivery', 'Escalation workflows', 'Quiet-hour controls'],
+    author: 'Teambridge',
+    installs: '88',
+    rating: 4.4,
+    shape: <ShapeFlower color="var(--color-azure-content-secondary, #5B3DF0)" />,
+    preview: {
+      tagline: 'Send the right message to the right people, automatically.',
+      recommendedFor: ['operations', 'communications', 'staffing'],
+      capabilities: ['Priority-based notifications', 'Role-aware targeting', 'SMS and push delivery', 'Escalation workflows', 'Quiet-hour controls'],
+      businessValue: ['Reduce noise', 'Faster response times', 'Better escalation paths'],
+      setupComplexity: 'low',
+      estimatedImpact: 'medium',
+      status: 'optional',
+    },
+  },
+  {
+    id: 'invoice_generation_engine',
+    name: 'Invoice Generation Engine',
+    description: 'Automatically converts approved labor hours into client invoices.',
+    category: 'Billing',
+    appType: 'background',
+    targetUsers: ['System'],
+    coreFeatures: ['Generate invoices from shifts', 'Apply bill rates', 'Calculate overtime billing', 'Create invoice PDFs', 'Track invoice status'],
+    author: 'Teambridge',
+    installs: '52',
+    rating: 4.3,
+    shape: <ShapePentagon color="var(--color-pink-content-secondary, #E68FB6)" />,
+    preview: {
+      tagline: 'Turn shifts into client invoices without manual entry.',
+      recommendedFor: ['staffing agencies', 'finance', 'operations'],
+      capabilities: ['Generate invoices from shifts', 'Apply bill rates', 'Calculate overtime billing', 'Create invoice PDFs', 'Track invoice status'],
+      businessValue: ['Faster billing cycles', 'Fewer billing errors', 'Better revenue visibility'],
+      setupComplexity: 'medium',
+      estimatedImpact: 'high',
+      status: 'recommended',
+    },
+  },
+  {
+    id: 'worker_matching_engine',
+    name: 'Worker Matching Engine',
+    description: 'Automatically recommends the best workers for open shifts using availability and performance data.',
+    category: 'Staffing',
+    appType: 'background',
+    targetUsers: ['System'],
+    coreFeatures: ['Skill-based matching', 'Availability filtering', 'Distance calculations', 'Performance-based recommendations', 'Compliance-aware matching'],
+    author: 'Teambridge',
+    installs: '46',
+    rating: 4.2,
+    shape: <ShapeDiamond color="var(--color-pink-content-secondary, #E68FB6)" />,
+    preview: {
+      tagline: 'Surface the best worker for every open shift.',
+      recommendedFor: ['staffing agencies', 'operations', 'recruiting'],
+      capabilities: ['Skill-based matching', 'Availability filtering', 'Distance calculations', 'Performance-based recommendations', 'Compliance-aware matching'],
+      businessValue: ['Better fill rates', 'Higher worker satisfaction', 'Reduce coordinator effort'],
+      setupComplexity: 'medium',
+      estimatedImpact: 'high',
+      status: 'recommended',
     },
   },
 ];
@@ -1010,23 +1239,48 @@ const DialogBody = styled.div`
   gap: var(--space-8, 32px);
 `;
 
+const ScreenshotFrame = styled.div`
+  /* Plain pass-through wrapper — the soft halo lives inside Screenshot now. */
+`;
+
 const Screenshot = styled.div`
   width: 100%;
   aspect-ratio: 16 / 9;
   border-radius: var(--radius-md, 12px);
   border: 1px solid var(--color-border-opaque);
-  background: var(--color-bg-secondary);
+  background: var(--color-bg-primary);
   display: flex;
   align-items: stretch;
   justify-content: stretch;
   position: relative;
+  isolation: isolate;
   overflow: hidden;
+  padding: var(--space-5, 20px);
+
+  /* Blurred AI-tinted halo painted on a pseudo behind the inner screenshot
+     content. Clipped by the parent's overflow: hidden so it stays inside
+     the frame. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 90% at 0% 50%, rgba(140, 79, 226, 0.35), transparent 70%),
+      radial-gradient(ellipse 60% 90% at 100% 50%, rgba(255, 200, 87, 0.3), transparent 70%);
+    filter: blur(40px);
+    z-index: -1;
+    pointer-events: none;
+  }
 
   & > svg,
   & > img {
     width: 100%;
     height: 100%;
     display: block;
+    border-radius: var(--radius-sm, 6px);
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 18px 40px rgba(15, 23, 42, 0.10);
   }
 `;
 
@@ -1708,6 +1962,8 @@ function MockPerformance({ color }: MockProps) {
   );
 }
 
+import marketplaceHeroBg from '../assets/marketplace-hero-bg.svg';
+import marketplaceHeroBgDark from '../assets/marketplace-hero-bg-dark.svg';
 import shiftMarketplacePreview from '../assets/marketplace-previews/shift-marketplace.png';
 import laborCostPreview from '../assets/marketplace-previews/labor-cost-forecasting.png';
 import availabilityPreview from '../assets/marketplace-previews/employee-availability-portal.png';
@@ -1932,10 +2188,26 @@ const UseAppButton = styled(Button)`
   }
 `;
 
-function AppPreviewDialog({ app, onClose }: { app: AppDef | null; onClose: () => void }) {
+function AppPreviewDialog(props: {
+  app: AppDef | null;
+  onClose: () => void;
+  isInstalled?: boolean;
+  onInstall?: (id: string) => void;
+  onUninstall?: (id: string) => void;
+  onOpenApp?: (id: string) => void;
+}) {
+  const { onClose, isInstalled, onInstall, onUninstall, onOpenApp } = props;
+  // Keep the last non-null app around while the close animation plays so the
+  // dialog still has content to render after `app` flips back to null.
+  const [lastApp, setLastApp] = useState<AppDef | null>(props.app);
+  useEffect(() => {
+    if (props.app) setLastApp(props.app);
+  }, [props.app]);
+  const isOpen = props.app !== null;
+  const app = lastApp;
   if (!app) return null;
   return (
-    <Dialog open={!!app} onClose={onClose} size="lg" aria-label={`${app.name} preview`}>
+    <Dialog open={isOpen} onClose={onClose} size="lg" aria-label={`${app.name} preview`}>
       <DialogHeader onClose={onClose}>
         <DialogTitleRow>
           <DialogIcon>{app.shape}</DialogIcon>
@@ -1959,9 +2231,13 @@ function AppPreviewDialog({ app, onClose }: { app: AppDef | null; onClose: () =>
 
       <DialogContent>
         <DialogBody>
-          <Screenshot>
-            <AppPreviewMock id={app.id} name={app.name} />
-          </Screenshot>
+          {app.appType !== 'background' && (
+            <ScreenshotFrame>
+              <Screenshot>
+                <AppPreviewMock id={app.id} name={app.name} />
+              </Screenshot>
+            </ScreenshotFrame>
+          )}
 
           <StatGrid>
             <StatCard>
@@ -2019,26 +2295,77 @@ function AppPreviewDialog({ app, onClose }: { app: AppDef | null; onClose: () =>
       </DialogContent>
 
       <DialogFooter>
-        <UseAppButton variant="primary" size="md" trailingArtwork={<ArrowNarrowRightIcon size={14} />}>
-          Use App
-        </UseAppButton>
+        {isInstalled ? (
+          <>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => { onUninstall?.(app.id); onClose(); }}
+            >
+              Uninstall
+            </Button>
+            <UseAppButton
+              variant="primary"
+              size="md"
+              trailingArtwork={<ArrowNarrowRightIcon size={14} />}
+              onClick={() => { onOpenApp?.(app.id); onClose(); }}
+            >
+              Open
+            </UseAppButton>
+          </>
+        ) : (
+          <UseAppButton
+            variant="primary"
+            size="md"
+            trailingArtwork={<ArrowNarrowRightIcon size={14} />}
+            onClick={() => { onInstall?.(app.id); onClose(); }}
+          >
+            Use App
+          </UseAppButton>
+        )}
       </DialogFooter>
     </Dialog>
   );
 }
 
-export function MarketplacePage() {
+export function MarketplacePage({
+  installedAppIds = [],
+  onInstallApp,
+  onUninstallApp,
+  onOpenApp,
+}: {
+  installedAppIds?: string[];
+  onInstallApp?: (appId: string) => void;
+  onUninstallApp?: (appId: string) => void;
+  onOpenApp?: (appId: string) => void;
+} = {}) {
   const [search, setSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [selectedApp, setSelectedApp] = useState<AppDef | null>(null);
 
-  const popular = COMMUNITY_APPS.slice(0, 6);
-  const featured = COMMUNITY_APPS.slice(6);
+  const teamApps = COMMUNITY_APPS;
+  // Popular = most-installed apps across both team and background services.
+  const popular = [...COMMUNITY_APPS, ...BACKGROUND_MARKETPLACE_APPS]
+    .slice()
+    .sort((a, b) => parseInt(b.installs, 10) - parseInt(a.installs, 10))
+    .slice(0, 6);
+  // Featured = a hand-picked mix from both team and background lists,
+  // intentionally a different cut than Popular so they don't overlap.
+  const FEATURED_APP_IDS = [
+    'compliance_monitor',
+    'credential_expiration_monitor',
+    'performance_insights_dashboard',
+    'auto_shift_optimizer',
+  ];
+  const allApps = [...COMMUNITY_APPS, ...BACKGROUND_MARKETPLACE_APPS];
+  const featured = FEATURED_APP_IDS
+    .map(id => allApps.find(a => a.id === id))
+    .filter((a): a is AppDef => Boolean(a));
 
   const trimmedSearch = search.trim();
   const searchResults = trimmedSearch.length === 0
     ? []
-    : COMMUNITY_APPS.filter(app =>
+    : [...COMMUNITY_APPS, ...BACKGROUND_MARKETPLACE_APPS].filter(app =>
         app.name.toLowerCase().includes(trimmedSearch.toLowerCase()) ||
         app.description.toLowerCase().includes(trimmedSearch.toLowerCase()),
       );
@@ -2051,9 +2378,9 @@ export function MarketplacePage() {
   };
 
   return (
-    <MpPage>
+    <MlLandingPage>
       <MpHero>
-        <MpHeadline>Community Apps</MpHeadline>
+        <MpHeadline>App Marketplace</MpHeadline>
         <MpSubtitle>
           Discover shared workforce apps built by your team — combine forms, automations, and dashboards
           to run last-mile operations.
@@ -2107,12 +2434,12 @@ export function MarketplacePage() {
         <SectionBlock>
           <SectionHeader>
             <SectionTitleText>Popular</SectionTitleText>
-            <SectionCaption>Most installed apps in your workspace</SectionCaption>
+            <SectionCaption>Most installed apps across your workspace</SectionCaption>
           </SectionHeader>
           <PopularGrid>
             {popular.map((app, i) => (
               <PopularListItem
-                key={app.name}
+                key={app.id}
                 size="md"
                 divider={false}
                 interactive
@@ -2121,13 +2448,16 @@ export function MarketplacePage() {
                 description={
                   <PopularDescWrap>
                     <PopularDescLine>{app.description}</PopularDescLine>
-                    <PopularByline>{app.installs} installed</PopularByline>
+                    <PopularByline>
+                      <Download01Icon size={12} />
+                      {app.installs} installed
+                    </PopularByline>
                   </PopularDescWrap>
                 }
                 leadingSlot={
                   <PopularLeading>
                     <RankNumber>{i + 1}</RankNumber>
-                    <PopularIcon>
+                    <PopularIcon data-role="popular-icon">
                       <ShapeWrap>{app.shape}</ShapeWrap>
                     </PopularIcon>
                   </PopularLeading>
@@ -2147,7 +2477,7 @@ export function MarketplacePage() {
           <FeaturedGrid>
             {featured.map(app => (
               <FeaturedCard key={app.name} onClick={() => setSelectedApp(app)} role="button" tabIndex={0}>
-                <FeaturedIcon>
+                <FeaturedIcon data-role="featured-icon">
                   <ShapeWrap>{app.shape}</ShapeWrap>
                 </FeaturedIcon>
                 <FeaturedBody>
@@ -2166,8 +2496,69 @@ export function MarketplacePage() {
         </SectionBlock>
       )}
 
-      <AppPreviewDialog app={selectedApp} onClose={() => setSelectedApp(null)} />
-    </MpPage>
+      {teamApps.length > 0 && (
+        <SectionBlock>
+          <SectionHeader>
+            <SectionTitleText>Team apps</SectionTitleText>
+            <SectionCaption>Apps with a UI your team uses to run last-mile operations</SectionCaption>
+          </SectionHeader>
+          <FeaturedGrid>
+            {teamApps.map(app => (
+              <FeaturedCard key={app.id} onClick={() => setSelectedApp(app)} role="button" tabIndex={0}>
+                <FeaturedIcon data-role="featured-icon">
+                  <ShapeWrap>{app.shape}</ShapeWrap>
+                </FeaturedIcon>
+                <FeaturedBody>
+                  <FeaturedName>{app.name}</FeaturedName>
+                  <FeaturedDesc>{app.description}</FeaturedDesc>
+                  <FeaturedMeta>
+                    <Tag size="sm" variant="subtle" color="neutral">{app.category}</Tag>
+                    {app.targetUsers.map(user => (
+                      <Tag key={user} size="sm" variant="outline" color="neutral">{user}</Tag>
+                    ))}
+                  </FeaturedMeta>
+                </FeaturedBody>
+              </FeaturedCard>
+            ))}
+          </FeaturedGrid>
+        </SectionBlock>
+      )}
+
+      <SectionBlock>
+        <SectionHeader>
+          <SectionTitleText>Background apps</SectionTitleText>
+          <SectionCaption>Automated services that run in the background — no UI required</SectionCaption>
+        </SectionHeader>
+        <FeaturedGrid>
+          {BACKGROUND_MARKETPLACE_APPS.map(app => (
+            <FeaturedCard key={app.id} onClick={() => setSelectedApp(app)} role="button" tabIndex={0}>
+              <FeaturedIcon data-role="featured-icon">
+                <ShapeWrap>{app.shape}</ShapeWrap>
+              </FeaturedIcon>
+              <FeaturedBody>
+                <FeaturedName>{app.name}</FeaturedName>
+                <FeaturedDesc>{app.description}</FeaturedDesc>
+                <FeaturedMeta>
+                  <Tag size="sm" variant="subtle" color="neutral">{app.category}</Tag>
+                  {app.targetUsers.map(user => (
+                    <Tag key={user} size="sm" variant="outline" color="neutral">{user}</Tag>
+                  ))}
+                </FeaturedMeta>
+              </FeaturedBody>
+            </FeaturedCard>
+          ))}
+        </FeaturedGrid>
+      </SectionBlock>
+
+      <AppPreviewDialog
+        app={selectedApp}
+        onClose={() => setSelectedApp(null)}
+        isInstalled={selectedApp ? installedAppIds.includes(selectedApp.id) : false}
+        onInstall={onInstallApp}
+        onUninstall={onUninstallApp}
+        onOpenApp={onOpenApp}
+      />
+    </MlLandingPage>
   );
 }
 
@@ -2203,18 +2594,44 @@ const MlSubtitle = styled.p`
 
 const MlComposerWrap = styled.div`
   width: 100%;
-  max-width: 640px;
+  max-width: 720px;
   margin-top: var(--space-4, 16px);
   text-align: left;
+
+  /* Alloy's AIComposerInput wrapper adds 8px padding around the card —
+     remove it here so the card stretches edge-to-edge to match the
+     sections below. (Card visuals are owned by Alloy now.) */
+  [class*='_wrapper_znaes'] {
+    padding: 0;
+  }
+`;
+
+const MlComposerGlowWrap = styled.div`
+  position: relative;
+  isolation: isolate;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -12px;
+    border-radius: 24px;
+    background:
+      radial-gradient(ellipse 55% 70% at 12% 50%, rgba(140, 79, 226, 0.8) 0%, rgba(140, 79, 226, 0) 70%),
+      radial-gradient(ellipse 55% 70% at 50% 50%, rgba(68, 108, 255, 0.75) 0%, rgba(68, 108, 255, 0) 70%),
+      radial-gradient(ellipse 55% 70% at 88% 50%, rgba(30, 223, 222, 0.75) 0%, rgba(30, 223, 222, 0) 70%);
+    filter: blur(14px);
+    z-index: -1;
+    pointer-events: none;
+  }
 `;
 
 const MlComposerHint = styled.span`
   font-family: var(--font-sans);
   font-size: var(--text-xs, 0.75rem);
-  color: var(--color-content-tertiary);
-  display: inline-flex;
-  align-items: center;
-  margin-right: auto;
+  color: var(--color-content-disabled);
+  display: block;
+  text-align: center;
+  margin-top: var(--space-2, 8px);
 `;
 
 const MlSection = styled.section`
@@ -2308,6 +2725,19 @@ const MlRecName = styled.h3`
   color: var(--color-content-primary);
 `;
 
+const MlRecNameWrap = styled.div`
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+const MlRecNameRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+`;
+
 const MlRecDesc = styled.p`
   margin: 0;
   font-family: var(--font-sans);
@@ -2325,6 +2755,16 @@ const MlRecMeta = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2, 8px);
+  margin-top: auto;
+`;
+
+const MlRecTimestamp = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--color-content-tertiary);
 `;
 
 const MlCategoryGrid = styled.div`
@@ -2371,6 +2811,16 @@ const MlCategoryCount = styled.span`
 `;
 
 const RECOMMENDED_APP_IDS = ['shift_marketplace', 'smart_time_clock', 'compliance_monitor'];
+// Community apps that were just published — surface a "New" badge in the cards.
+const NEW_COMMUNITY_APP_IDS = new Set([
+  'compliance_monitor',
+  'performance_insights_dashboard',
+]);
+const RECOMMENDED_APP_INSTALLS: Record<string, number> = {
+  shift_marketplace: 1284,
+  smart_time_clock: 932,
+  compliance_monitor: 467,
+};
 const MARKETPLACE_CATEGORIES = [
   { name: 'Scheduling',           count: 1 },
   { name: 'Time Tracking',        count: 1 },
@@ -2394,9 +2844,18 @@ export function MarketplaceLandingPage({
   const [prompt, setPrompt] = useState('');
   const [selectedApp, setSelectedApp] = useState<AppDef | null>(null);
   const recommended = COMMUNITY_APPS.filter(app => RECOMMENDED_APP_IDS.includes(app.id));
+  const recentlyUsed = [...INSTALLED_APP_IDS]
+    .map(id => COMMUNITY_APPS.find(a => a.id === id))
+    .filter((a): a is AppDef => Boolean(a))
+    .slice(0, 3);
+  const recentlyUsedLabels: Record<string, string> = {
+    shift_marketplace: '3 minutes ago',
+    smart_time_clock: '2 hours ago',
+    workforce_messaging_center: '5 days ago',
+  };
 
   return (
-    <MpPage>
+    <MlLandingPage>
       <MlHero>
         <MlHeadline>Marketplace</MlHeadline>
         <MlSubtitle>
@@ -2404,32 +2863,82 @@ export function MarketplaceLandingPage({
           we'll surface the right apps or build a new one with you.
         </MlSubtitle>
         <MlComposerWrap>
-          <AIComposerInput
-            value={prompt}
-            onChange={setPrompt}
-            placeholder="Describe the app you want — e.g. 'Track equipment checked out by location and notify managers when overdue'"
-            maxRows={6}
-          >
-            <ComposerActions>
-              <MlComposerHint>Powered by Teambridge AI</MlComposerHint>
-              <ComposerSendButton
-                state={prompt.trim().length === 0 ? 'disabled-invalid' : 'ready'}
-                aria-label="Generate app"
-              />
-            </ComposerActions>
-          </AIComposerInput>
+          <MlComposerGlowWrap>
+            <AIComposerInput
+              value={prompt}
+              onChange={setPrompt}
+              placeholder="Describe the app you want — e.g. 'Track equipment checked out by location and notify managers when overdue'"
+              maxRows={6}
+            >
+              <ComposerActions>
+                <ComposerSendButton
+                  state={prompt.trim().length === 0 ? 'disabled-invalid' : 'ready'}
+                  aria-label="Generate app"
+                />
+              </ComposerActions>
+            </AIComposerInput>
+          </MlComposerGlowWrap>
+          <MlComposerHint>Powered by Teambridge AI</MlComposerHint>
         </MlComposerWrap>
       </MlHero>
+
+      {recentlyUsed.length > 0 && (
+        <MlSection>
+          <MlSectionHeader>
+            <div>
+              <MlSectionHeading>Recently used</MlSectionHeading>
+              <MlSectionCaption>Apps you've opened recently</MlSectionCaption>
+            </div>
+            {onOpenInstalled && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onOpenInstalled}
+                trailingArtwork={<ArrowNarrowRightIcon size={14} />}
+              >
+                View installed apps
+              </Button>
+            )}
+          </MlSectionHeader>
+          <MlRecGrid>
+            {recentlyUsed.map(app => (
+              <MlRecCard key={app.id} onClick={() => onOpenApp?.(app.id)}>
+                <MlRecHeader>
+                  <MlRecIconTile>{app.shape}</MlRecIconTile>
+                  <div>
+                    <MlRecName>{app.name}</MlRecName>
+                    <MlSectionCaption>{app.category}</MlSectionCaption>
+                  </div>
+                </MlRecHeader>
+                <MlRecDesc>{app.description}</MlRecDesc>
+                <MlRecMeta>
+                  <MlRecTimestamp>
+                    <ClockIcon size={12} />
+                    {recentlyUsedLabels[app.id] ?? 'Recently'}
+                  </MlRecTimestamp>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); onOpenApp?.(app.id); }}
+                  >
+                    Open
+                  </Button>
+                </MlRecMeta>
+              </MlRecCard>
+            ))}
+          </MlRecGrid>
+        </MlSection>
+      )}
 
       <MlSection>
         <MlSectionHeader>
           <div>
-            <MlSectionHeading>Recommended apps to install</MlSectionHeading>
+            <MlSectionHeading>Recommended</MlSectionHeading>
             <MlSectionCaption>Curated for workforce teams like yours</MlSectionCaption>
           </div>
           {onOpenCommunity && (
             <Button
-              variant="tertiary"
+              variant="ghost"
               size="sm"
               onClick={onOpenCommunity}
               trailingArtwork={<ArrowNarrowRightIcon size={14} />}
@@ -2443,14 +2952,22 @@ export function MarketplaceLandingPage({
             <MlRecCard key={app.id} onClick={() => setSelectedApp(app)}>
               <MlRecHeader>
                 <MlRecIconTile>{app.shape}</MlRecIconTile>
-                <div>
-                  <MlRecName>{app.name}</MlRecName>
+                <MlRecNameWrap>
+                  <MlRecNameRow>
+                    <MlRecName>{app.name}</MlRecName>
+                    {NEW_COMMUNITY_APP_IDS.has(app.id) && (
+                      <AlloyBadge variant="primary">New</AlloyBadge>
+                    )}
+                  </MlRecNameRow>
                   <MlSectionCaption>{app.category}</MlSectionCaption>
-                </div>
+                </MlRecNameWrap>
               </MlRecHeader>
               <MlRecDesc>{app.description}</MlRecDesc>
               <MlRecMeta>
-                <span />
+                <MlRecTimestamp>
+                  <Download01Icon size={12} />
+                  {(RECOMMENDED_APP_INSTALLS[app.id] ?? 0).toLocaleString()} installs
+                </MlRecTimestamp>
                 <Button
                   variant="secondary"
                   size="sm"
@@ -2464,35 +2981,8 @@ export function MarketplaceLandingPage({
         </MlRecGrid>
       </MlSection>
 
-      <MlSection>
-        <MlSectionHeader>
-          <div>
-            <MlSectionHeading>Browse by category</MlSectionHeading>
-            <MlSectionCaption>Find apps tailored to a specific workflow</MlSectionCaption>
-          </div>
-          {onOpenInstalled && (
-            <Button
-              variant="tertiary"
-              size="sm"
-              onClick={onOpenInstalled}
-              trailingArtwork={<ArrowNarrowRightIcon size={14} />}
-            >
-              View installed apps
-            </Button>
-          )}
-        </MlSectionHeader>
-        <MlCategoryGrid>
-          {MARKETPLACE_CATEGORIES.map(cat => (
-            <MlCategoryCard key={cat.name} onClick={onOpenCommunity}>
-              <MlCategoryName>{cat.name}</MlCategoryName>
-              <MlCategoryCount>{cat.count} {cat.count === 1 ? 'app' : 'apps'}</MlCategoryCount>
-            </MlCategoryCard>
-          ))}
-        </MlCategoryGrid>
-      </MlSection>
-
       <AppPreviewDialog app={selectedApp} onClose={() => setSelectedApp(null)} />
-    </MpPage>
+    </MlLandingPage>
   );
 }
 
@@ -2500,10 +2990,19 @@ export function MarketplaceLandingPage({
 
 const InstalledHeader = styled.div`
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4, 16px);
-  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3, 12px);
+`;
+
+const InstalledSearchFill = styled.div`
+  flex: 1 1 auto;
+  min-width: 0;
+
+  & [class*='_shell_'] {
+    width: 100%;
+    height: 36px;
+    min-height: 36px;
+  }
 `;
 
 const InstalledHeaderText = styled.div`
@@ -2570,6 +3069,58 @@ const InstalledSection = styled.section`
   margin-top: var(--space-8, 32px);
 `;
 
+const InstalledDescWrap = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+`;
+
+const InstalledLastOpened = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--color-content-tertiary);
+`;
+
+const InstalledTrailing = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+
+  /* Match pin button to the Uninstall button height. */
+  & > button[data-variant] {
+    height: 24px;
+    min-height: 24px;
+  }
+`;
+
+const InstalledPinButton = styled.button<{ $pinned: boolean }>`
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: ${p => (p.$pinned ? 'var(--color-content-primary)' : 'var(--color-content-tertiary)')};
+  opacity: ${p => (p.$pinned ? 1 : 0.6)};
+  transition: background 120ms ease, color 120ms ease, opacity 120ms ease;
+
+  &:hover {
+    opacity: 1;
+    background: var(--color-bg-tertiary, rgba(21, 21, 21, 0.08));
+    color: var(--color-content-primary);
+  }
+
+  &:focus-visible {
+    opacity: 1;
+    box-shadow: inset 0 0 0 2px var(--color-border-focus, #1969fe);
+  }
+`;
+
 const InstalledSectionHeader = styled.div`
   display: flex;
   align-items: center;
@@ -2598,15 +3149,60 @@ const InstalledList = styled.div`
 
 const InstalledItem = styled(ListItem)`
   --li-px: var(--space-4, 16px);
+  --li-hover-bg: var(--color-bg-secondary);
   border-radius: var(--radius-md, 12px);
   border: 1px solid var(--color-border-opaque);
   background: var(--color-bg-primary);
+  align-items: flex-start;
+
+  & [class*='_leadingSlot_'],
+  & [class*='_trailingSlot_'] {
+    align-self: flex-start;
+  }
 
   & [class*='_description_'] {
     white-space: normal;
     overflow: visible;
     text-overflow: clip;
+    font-size: var(--text-sm, 0.875rem);
+    line-height: var(--line-height-relaxed, 1.5);
+    color: var(--color-content-secondary);
   }
+
+  /* The "last opened" timestamp lives inside the description block but
+     reads as a separate, quieter line — keep it on the tertiary color. */
+  & [class*='_description_'] [data-role='installed-last-opened'] {
+    color: var(--color-content-tertiary);
+  }
+`;
+
+const InstalledZeroState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-2, 8px);
+  padding: var(--space-8, 32px) var(--space-6, 24px);
+  border-radius: var(--radius-md, 12px);
+  border: 1px dashed var(--color-border-opaque);
+  background: var(--color-bg-primary);
+`;
+
+const InstalledZeroTitle = styled.h3`
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base, 1rem);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-content-primary);
+`;
+
+const InstalledZeroDesc = styled.p`
+  margin: 0;
+  max-width: 480px;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm, 0.875rem);
+  line-height: var(--line-height-relaxed, 1.5);
+  color: var(--color-content-secondary);
 `;
 
 const InstalledEmpty = styled.div`
@@ -2619,6 +3215,24 @@ const InstalledEmpty = styled.div`
 
 const TEAM_APP_IDS = ['shift_marketplace', 'employee_availability_portal', 'smart_time_clock', 'workforce_messaging_center', 'client_staffing_portal'];
 const BACKGROUND_APP_IDS = ['labor_cost_forecasting', 'compliance_monitor', 'recruiting_pipeline_dashboard', 'credential_tracker', 'performance_insights_dashboard'];
+
+// Maps the community-app id (used in COMMUNITY_APPS / INSTALLED_APP_IDS) to
+// the marketplace secondary-nav id used by the primary-nav pin lookup.
+const COMMUNITY_TO_MP_NAV_ID: Record<string, string> = {
+  shift_marketplace:                'mp-shift-marketplace',
+  employee_availability_portal:     'mp-availability',
+  smart_time_clock:                 'mp-time-clock',
+  workforce_messaging_center:       'mp-messaging',
+  client_staffing_portal:           'mp-client-portal',
+  labor_cost_forecasting:           'mp-labor-cost',
+  compliance_monitor:               'mp-compliance-monitor',
+  recruiting_pipeline_dashboard:    'mp-recruiting',
+  credential_tracker:               'mp-credential',
+  performance_insights_dashboard:   'mp-performance',
+};
+export const MP_NAV_ID_TO_COMMUNITY: Record<string, string> = Object.fromEntries(
+  Object.entries(COMMUNITY_TO_MP_NAV_ID).map(([k, v]) => [v, k]),
+);
 const INSTALLED_APP_IDS = new Set([
   'shift_marketplace',
   'smart_time_clock',
@@ -2630,9 +3244,19 @@ const INSTALLED_APP_IDS = new Set([
 export function InstalledAppsPage({
   onOpenCommunity,
   onOpenApp,
+  pinnedAppIds = [],
+  onTogglePin,
+  installedAppIds = [],
+  onUninstallApp,
+  lastOpenedAtById = {},
 }: {
   onOpenCommunity?: () => void;
   onOpenApp?: (appId: string) => void;
+  pinnedAppIds?: string[];
+  onTogglePin?: (appId: string) => void;
+  installedAppIds?: string[];
+  onUninstallApp?: (appId: string) => void;
+  lastOpenedAtById?: Record<string, number>;
 }) {
   const [search, setSearch] = useState('');
   const [searchExpanded, setSearchExpanded] = useState(false);
@@ -2653,8 +3277,25 @@ export function InstalledAppsPage({
     return app.name.toLowerCase().includes(q) || app.description.toLowerCase().includes(q);
   };
 
-  const teamApps = COMMUNITY_APPS.filter(a => TEAM_APP_IDS.includes(a.id) && INSTALLED_APP_IDS.has(a.id) && matches(a));
-  const backgroundApps = COMMUNITY_APPS.filter(a => BACKGROUND_APP_IDS.includes(a.id) && INSTALLED_APP_IDS.has(a.id) && matches(a));
+  const installedSet = new Set(installedAppIds);
+  const allApps = [...COMMUNITY_APPS, ...BACKGROUND_MARKETPLACE_APPS];
+  const teamApps = allApps.filter(a => a.appType !== 'background' && installedSet.has(a.id) && matches(a));
+  const backgroundApps = allApps.filter(a => a.appType === 'background' && installedSet.has(a.id) && matches(a));
+  const hasNoInstalls = installedAppIds.length === 0;
+
+  const formatRelative = (ts: number | undefined): string | null => {
+    if (!ts) return null;
+    const diff = Date.now() - ts;
+    if (diff < 45_000) return 'Just now';
+    const minutes = Math.round(diff / 60_000);
+    if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+    const days = Math.round(hours / 24);
+    if (days < 7) return `${days} ${days === 1 ? 'day' : 'days'} ago`;
+    const weeks = Math.round(days / 7);
+    return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
+  };
 
   const renderItem = (app: AppDef) => (
     <InstalledItem
@@ -2664,20 +3305,52 @@ export function InstalledAppsPage({
       interactive
       onClick={() => onOpenApp?.(app.id)}
       label={app.name}
-      description={app.description}
+      description={
+        <InstalledDescWrap>
+          <span>{app.description}</span>
+          {(() => {
+            const label = formatRelative(lastOpenedAtById[app.id]);
+            if (!label) return null;
+            return (
+              <InstalledLastOpened data-role="installed-last-opened">
+                <ClockIcon size={12} />
+                {label}
+              </InstalledLastOpened>
+            );
+          })()}
+        </InstalledDescWrap>
+      }
       leadingSlot={
         <SearchResultIcon>
           <ShapeWrap>{app.shape}</ShapeWrap>
         </SearchResultIcon>
       }
       trailingSlot={
-        <Button
-          variant="destructive-secondary"
-          size="sm"
-          onClick={(e) => { e.stopPropagation(); }}
-        >
-          Uninstall
-        </Button>
+        <InstalledTrailing>
+          {onTogglePin && (() => {
+            const mpId = COMMUNITY_TO_MP_NAV_ID[app.id];
+            if (!mpId) return null;
+            const isPinned = pinnedAppIds.includes(mpId);
+            return (
+              <InstalledPinButton
+                type="button"
+                $pinned={isPinned}
+                aria-label={isPinned ? 'Unpin from left nav' : 'Pin to left nav'}
+                title={isPinned ? 'Unpin from left nav' : 'Pin to left nav'}
+                onClick={(e) => { e.stopPropagation(); onTogglePin(mpId); }}
+              >
+                <Pin01Icon size={16} fill={isPinned ? 'currentColor' : 'none'} />
+              </InstalledPinButton>
+            );
+          })()}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); onUninstallApp?.(app.id); }}
+          >
+            Uninstall
+          </Button>
+        </InstalledTrailing>
       }
     />
   );
@@ -2685,64 +3358,49 @@ export function InstalledAppsPage({
   return (
     <MpPage>
       <InstalledHeader>
-        <InstalledHeaderText>
-          <InstalledTitle>Installed Apps</InstalledTitle>
-          <InstalledSubtitle>Workforce apps your team has installed in this workspace.</InstalledSubtitle>
-        </InstalledHeaderText>
-        <InstalledHeaderActions>
-          {searchExpanded ? (
-            <InstalledSearchExpand>
-              <SearchField
-                ref={searchInputRef}
-                size="md"
-                placeholder="Search installed apps"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                onBlur={() => { if (search.trim().length === 0) setSearchExpanded(false); }}
-              />
-            </InstalledSearchExpand>
-          ) : (
-            <Button
-              variant="tertiary"
-              size="md"
-              iconOnly
-              aria-label="Search installed apps"
-              onClick={openSearch}
-            >
-              <SearchSmIcon size={16} />
-            </Button>
-          )}
-          {searchExpanded && search.trim().length > 0 && (
-            <Button
-              variant="tertiary"
-              size="md"
-              iconOnly
-              aria-label="Clear search"
-              onClick={closeSearch}
-            >
-              <XIcon size={16} />
-            </Button>
-          )}
-          {onOpenCommunity && (
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={onOpenCommunity}
-              trailingArtwork={<ArrowNarrowRightIcon size={14} />}
-            >
-              Community Apps
-            </Button>
-          )}
-        </InstalledHeaderActions>
+        <InstalledSearchFill>
+          <SearchField
+            size="md"
+            placeholder="Search installed apps"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </InstalledSearchFill>
+        {onOpenCommunity && (
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={onOpenCommunity}
+            trailingArtwork={<ArrowNarrowRightIcon size={14} />}
+          >
+            App Marketplace
+          </Button>
+        )}
       </InstalledHeader>
 
       <InstalledSection>
         <InstalledSectionHeader>
           <InstalledSectionTitle>Team apps</InstalledSectionTitle>
-          <Tag size="sm" variant="subtle" color="neutral">{teamApps.length}</Tag>
+          <AlloyBadge variant="neutral">{teamApps.length}</AlloyBadge>
         </InstalledSectionHeader>
         {teamApps.length === 0 ? (
-          <InstalledEmpty>No team apps match your search</InstalledEmpty>
+          <InstalledZeroState>
+            <InstalledZeroTitle>No team apps installed yet</InstalledZeroTitle>
+            <InstalledZeroDesc>
+              Browse the App Marketplace and click <strong>Use App</strong> on a
+              team app to install it here.
+            </InstalledZeroDesc>
+            {onOpenCommunity && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onOpenCommunity}
+                trailingArtwork={<ArrowNarrowRightIcon size={14} />}
+              >
+                Browse App Marketplace
+              </Button>
+            )}
+          </InstalledZeroState>
         ) : (
           <InstalledList>
             {teamApps.map(app => renderItem(app))}
@@ -2753,10 +3411,26 @@ export function InstalledAppsPage({
       <InstalledSection>
         <InstalledSectionHeader>
           <InstalledSectionTitle>Background apps</InstalledSectionTitle>
-          <Tag size="sm" variant="subtle" color="neutral">{backgroundApps.length}</Tag>
+          <AlloyBadge variant="neutral">{backgroundApps.length}</AlloyBadge>
         </InstalledSectionHeader>
         {backgroundApps.length === 0 ? (
-          <InstalledEmpty>No background apps match your search</InstalledEmpty>
+          <InstalledZeroState>
+            <InstalledZeroTitle>No background apps installed yet</InstalledZeroTitle>
+            <InstalledZeroDesc>
+              Browse the App Marketplace and click <strong>Use App</strong> on a
+              background service to install it here.
+            </InstalledZeroDesc>
+            {onOpenCommunity && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onOpenCommunity}
+                trailingArtwork={<ArrowNarrowRightIcon size={14} />}
+              >
+                Browse App Marketplace
+              </Button>
+            )}
+          </InstalledZeroState>
         ) : (
           <InstalledList>
             {backgroundApps.map(app => renderItem(app))}

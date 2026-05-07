@@ -43,6 +43,7 @@ export function DesktopShell({
   actions,
   showActivityButton,
   showPonderButton,
+  noBorder,
   onActivityClick,
   onPonderClick,
   onDotsClick,
@@ -110,6 +111,7 @@ export function DesktopShell({
             actions={actions}
             showActivityButton={showActivityButton}
             showPonderButton={showPonderButton}
+            noBorder={noBorder}
             onActivityClick={onActivityClick}
             onPonderClick={onPonderClick}
             onDotsClick={onDotsClick}

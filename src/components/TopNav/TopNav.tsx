@@ -56,6 +56,8 @@ export interface TopNavProps {
   showActivityButton?: boolean;
   /** Show the Ponder AI button */
   showPonderButton?: boolean;
+  /** Hide the bottom border */
+  noBorder?: boolean;
   onActivityClick?: () => void;
   onPonderClick?: () => void;
   onDotsClick?: () => void;
@@ -66,6 +68,7 @@ export function TopNav({
   actions = [],
   showActivityButton = true,
   showPonderButton = true,
+  noBorder = false,
   onActivityClick,
   onPonderClick,
   onDotsClick,
@@ -74,7 +77,7 @@ export function TopNav({
   const primaryActions = actions.filter(a => a.variant === 'primary');
 
   return (
-    <TopNavRoot>
+    <TopNavRoot $noBorder={noBorder}>
       <TopNavHeading>
         {typeof heading === 'string' ? <HeadingText>{heading}</HeadingText> : heading}
       </TopNavHeading>

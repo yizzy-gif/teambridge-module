@@ -250,19 +250,20 @@ export const NewBadge = styled.span`
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1px 6px;
+  padding: 2px 12px 2px 8px;
   border-radius: 16px;
   background: linear-gradient(
     to bottom,
-    rgba(227, 25, 254, 0.2),
-    rgba(255, 46, 146, 0.2)
+    rgba(227, 25, 254, 0.18),
+    rgba(255, 46, 146, 0.18)
   );
   box-shadow: 0px 12px 32px rgba(0, 0, 0, 0.03);
   font-family: var(--font-sans, 'Geist', sans-serif);
-  font-size: 8px;
-  font-weight: 500;
-  line-height: 12px;
-  color: var(--color-content-inverse, white);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  letter-spacing: 0.02em;
+  color: #B01786;
   white-space: nowrap;
   flex-shrink: 0;
 `;

@@ -1,6 +1,6 @@
 import styled from 'styled-components';
 
-export const TopNavRoot = styled.header`
+export const TopNavRoot = styled.header<{ $noBorder?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -8,7 +8,7 @@ export const TopNavRoot = styled.header`
   min-height: 48px;
   padding: 4px 12px;
   background: var(--color-bg-primary, white);
-  border-bottom: 1px solid var(--color-border-opaque, #e8eaee);
+  border-bottom: ${({ $noBorder }) => ($noBorder ? 'none' : '1px solid var(--color-border-opaque, #e8eaee)')};
   flex-shrink: 0;
 `;
 
