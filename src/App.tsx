@@ -25,7 +25,7 @@ import policyActiveUrl from './assets/policy-icon-active.svg';
 import automationActiveUrl from './assets/automation-icon-active.svg';
 import {
   HomePage, EngagedPage, InboxPage, InvoicePage, AIHomePage,
-  MarketplacePage, MarketplaceAppPage, CustomAppPage, AddAppPage,
+  MarketplacePage, MarketplaceAppPage, InstalledAppsPage, MarketplaceLandingPage, CustomAppPage, AddAppPage,
   DocumentStudioPage, FormPage, TasksPage, PolicyPage,
   AutomationPage, PayrollPage, ESignPage,
   getMarketplaceAppIcon,
@@ -154,7 +154,6 @@ const APP_SEC_CONFIG: Record<string, AppSecConfig> = {
   },
   'marketplace': {
     defaultId: 'mp-shift-marketplace',
-    defaultPageId: 'mp-community',
     entries: [
       { group: {
         id: 'mp-team-apps', label: 'Team apps', icon: <Users03Icon size={16} />,
@@ -445,13 +444,18 @@ function AIHomeContent({
   return <AIHomePage />;
 }
 
-function MarketplaceContent({ secActiveId }: { secActiveId: string }) {
-  const config = APP_SEC_CONFIG['marketplace'];
-  const item = config?.entries.find(
-    (e): e is SecItemDef => !('group' in e) && !('kind' in e) && e.id === secActiveId,
-  );
-  return <MarketplaceAppPage name={item?.label ?? 'App'} />;
-}
+const COMMUNITY_APP_LABELS: Record<string, string> = {
+  'shift_marketplace':              'Shift Marketplace',
+  'labor_cost_forecasting':         'Labor Cost Forecasting',
+  'employee_availability_portal':   'Employee Availability Portal',
+  'compliance_monitor':             'Compliance Monitor',
+  'smart_time_clock':               'Smart Time Clock',
+  'recruiting_pipeline_dashboard':  'Recruiting Pipeline Dashboard',
+  'workforce_messaging_center':     'Workforce Messaging Center',
+  'client_staffing_portal':         'Client Staffing Portal',
+  'credential_tracker':             'Credential Tracker',
+  'performance_insights_dashboard': 'Performance Insights Dashboard',
+};
 
 function PageContent({
   activeId,
@@ -459,12 +463,18 @@ function PageContent({
   activePageId,
   selectedPersonaId,
   setSelectedPersonaId,
+  onOpenCommunity,
+  onOpenInstalled,
+  onOpenApp,
 }: {
   activeId: string;
   secActiveId: string;
   activePageId: string | null;
   selectedPersonaId: string | null;
   setSelectedPersonaId: (id: string | null) => void;
+  onOpenCommunity?: () => void;
+  onOpenInstalled?: () => void;
+  onOpenApp?: (appId: string) => void;
 }) {
   switch (activeId) {
     case 'home':        return <HomePage />;
@@ -473,9 +483,20 @@ function PageContent({
     case 'invoice':     return <InvoicePage />;
     case 'ai-home':     return <AIHomeContent secActiveId={secActiveId} selectedPersonaId={selectedPersonaId} setSelectedPersonaId={setSelectedPersonaId} />;
     case 'marketplace':
-      return activePageId === 'mp-community'
-        ? <MarketplacePage />
-        : <MarketplaceContent secActiveId={secActiveId} />;
+      if (activePageId === 'mp-community') return <MarketplacePage />;
+      if (activePageId === 'mp-installed') return <InstalledAppsPage onOpenCommunity={onOpenCommunity} onOpenApp={onOpenApp} />;
+      if (activePageId?.startsWith('app:')) {
+        const appId = activePageId.slice(4);
+        const appLabel = COMMUNITY_APP_LABELS[appId] ?? 'App';
+        return <MarketplaceAppPage name={appLabel} />;
+      }
+      return (
+        <MarketplaceLandingPage
+          onOpenCommunity={onOpenCommunity}
+          onOpenInstalled={onOpenInstalled}
+          onOpenApp={onOpenApp}
+        />
+      );
     case 'app-tool':    return <CustomAppPage />;
     case 'add-app':     return <AddAppPage />;
     case 'docs':        return <DocumentStudioPage />;
@@ -636,7 +657,43 @@ export default function App() {
   const topNavHeading: React.ReactNode = (() => {
     if (activePageId === 'usage') return <HeadingText>Usage</HeadingText>;
     if (activeId === 'marketplace' && activePageId === 'mp-community') {
-      return <HeadingText>Community Apps</HeadingText>;
+      return (
+        <Breadcrumb
+          separator="chevron"
+          items={[
+            { label: 'Marketplace', onClick: () => setActivePageId(null) },
+            { label: 'Community Apps' },
+          ]}
+        />
+      );
+    }
+    if (activeId === 'marketplace' && activePageId === 'mp-installed') {
+      return (
+        <Breadcrumb
+          separator="chevron"
+          items={[
+            { label: 'Marketplace', onClick: () => setActivePageId(null) },
+            { label: 'Installed Apps' },
+          ]}
+        />
+      );
+    }
+    if (activeId === 'marketplace' && activePageId?.startsWith('app:')) {
+      const appId = activePageId.slice(4);
+      const appLabel = COMMUNITY_APP_LABELS[appId] ?? 'App';
+      return (
+        <Breadcrumb
+          separator="chevron"
+          items={[
+            { label: 'Marketplace', onClick: () => setActivePageId(null) },
+            { label: 'Installed Apps', onClick: () => setActivePageId('mp-installed') },
+            { label: appLabel },
+          ]}
+        />
+      );
+    }
+    if (activeId === 'marketplace') {
+      return <HeadingText>Marketplace</HeadingText>;
     }
     if (activeId === 'ai-home' && secActiveId === 'ai-personas' && selectedPersonaId) {
       const persona = mockPersonas.find(p => p.id === selectedPersonaId);
@@ -748,7 +805,7 @@ export default function App() {
       secNavHeading={APP_LABELS[activeId] ?? activeId}
       menuEntries={buildMenuEntries(activeId, secActiveId, handleSecNavClick, activePageId !== null, pinnedAppIds, handleTogglePin)}
       pageEntries={pageEntries}
-      showSecondaryNav={true}
+      showSecondaryNav={activeId !== 'marketplace'}
       showSearch
       searchValue={search}
       onSearchChange={setSearch}
@@ -756,7 +813,7 @@ export default function App() {
       bodyContent={aiHomeBody}
       // TopNav — only shows current secondary selection (app shown in SecNav)
       heading={topNavHeading}
-      actions={activeId === 'ai-home' || activePageId === 'usage' || (activeId === 'marketplace' && activePageId === 'mp-community') ? [] : DEFAULT_TOP_NAV_ACTIONS}
+      actions={activeId === 'ai-home' || activeId === 'marketplace' || activePageId === 'usage' ? [] : DEFAULT_TOP_NAV_ACTIONS}
       showActivityButton
       showPonderButton
       // Mobile chrome opt-in
@@ -781,6 +838,9 @@ export default function App() {
           activePageId={activePageId}
           selectedPersonaId={selectedPersonaId}
           setSelectedPersonaId={setSelectedPersonaId}
+          onOpenCommunity={() => setActivePageId('mp-community')}
+          onOpenInstalled={() => setActivePageId('mp-installed')}
+          onOpenApp={(id) => setActivePageId(`app:${id}`)}
         />
       )}
     </AppShell>

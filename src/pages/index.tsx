@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import styled from 'styled-components';
 import {
-  Button, Tag, ListItem,
+  Button, Tag, ListItem, Eyebrow,
   ArrowNarrowRightIcon,
   SearchField,
   Dialog, DialogHeader, DialogContent, DialogFooter,
   CheckCircleIcon, ZapIcon,
+  SearchSmIcon, XIcon,
+  AIComposerInput,
+  ComposerActions, ComposerSendButton,
 } from 'alloy-design-system';
 
 // ── Shared primitives ──────────────────────────────────────────────────────
@@ -421,8 +424,12 @@ const SectionBlock = styled.section`
   flex-direction: column;
   gap: var(--space-2, 8px);
   margin: var(--space-8, 32px) auto 0;
-  width: 100%;
-  max-width: 720px;
+  width: 70%;
+  max-width: 1280px;
+
+  @media (max-width: 900px) {
+    width: 100%;
+  }
 `;
 
 const SectionHeader = styled.div`
@@ -458,11 +465,14 @@ const SectionTitleText = styled.h2`
 
 const PopularGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-1, 4px) var(--space-2, 8px);
   margin-top: var(--space-3, 12px);
 
-  @media (max-width: 900px) {
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (max-width: 700px) {
     grid-template-columns: 1fr;
   }
 `;
@@ -546,12 +556,15 @@ const BylineDot = styled.span`
 
 const FeaturedGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-4, 16px);
   margin-top: var(--space-3, 12px);
   padding-bottom: var(--space-12, 48px);
 
-  @media (max-width: 900px) {
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (max-width: 700px) {
     grid-template-columns: 1fr;
   }
 `;
@@ -997,6 +1010,755 @@ const DialogBody = styled.div`
   gap: var(--space-8, 32px);
 `;
 
+const Screenshot = styled.div`
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--color-border-opaque);
+  background: var(--color-bg-secondary);
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  position: relative;
+  overflow: hidden;
+
+  & > svg,
+  & > img {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+`;
+
+// ── App preview mockups (stylized screenshots) ───────────────────────────
+
+interface MockProps { color: string; soft: string }
+
+function MockShiftMarketplace({ color }: MockProps) {
+  const filters = [
+    { label: 'All open shifts', count: 42, active: true },
+    { label: 'This weekend', count: 14 },
+    { label: 'Premium pay', count: 8 },
+    { label: 'Near me', count: 19 },
+  ];
+  const shifts = [
+    { role: 'Line Cook', when: 'Sat · 10AM – 6PM · Downtown · 2.1 mi', pay: '$22.50/hr', tag: 'Eligible', tagBg: '#DCFCE7', tagColor: '#166534', iconBg: '#DCFCE7' },
+    { role: 'Server', when: 'Sat · 4PM – 11PM · Westside · 4.8 mi', pay: '$18.00/hr + tips', tag: 'Eligible', tagBg: '#DCFCE7', tagColor: '#166534', iconBg: '#DCFCE7' },
+    { role: 'Shift Lead', when: 'Sun · 6AM – 2PM · Northgate · 0.9 mi', pay: '$26.00/hr', tag: 'Premium', tagBg: '#DBEAFE', tagColor: '#1E40AF', iconBg: '#DBEAFE' },
+    { role: 'Dishwasher', when: 'Sun · 12PM – 8PM · Downtown · 2.1 mi', pay: '$17.50/hr', tag: 'Pending', tagBg: '#F1F5F9', tagColor: '#475569', iconBg: '#DCFCE7' },
+  ];
+  return (
+    <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bgShift" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#E8E9F4" />
+          <stop offset="55%" stopColor="#EFEAFB" />
+          <stop offset="100%" stopColor="#DCE7FB" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="225" fill="url(#bgShift)" />
+      <rect x="14" y="14" width="372" height="197" rx="10" fill="#fff" />
+      <text x="22" y="29" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">Shift Marketplace ·</text>
+      <text x="78" y="29" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a">Open shifts</text>
+      <line x1="14" y1="40" x2="386" y2="40" stroke="#e2e8f0" strokeWidth="0.5" />
+      {/* Sidebar filters */}
+      <text x="22" y="56" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#0f172a" opacity="0.5">FILTERS</text>
+      {filters.map((f, i) => (
+        <g key={f.label} transform={`translate(18, ${66 + i * 18})`}>
+          {f.active && <rect x="0" y="-4" width="100" height="14" rx="4" fill="#F1F5F9" />}
+          <text x="6" y="6" fontFamily="Geist, sans-serif" fontSize="6" fontWeight={f.active ? '600' : '500'} fill="#0f172a">{f.label}</text>
+          <text x="92" y="6" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#0f172a" opacity="0.5" textAnchor="end">{f.count}</text>
+        </g>
+      ))}
+      <text x="22" y="156" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#0f172a" opacity="0.5">LOCATION</text>
+      {[{l:'Downtown',c:12},{l:'Westside',c:7}].map((d, i) => (
+        <g key={d.l} transform={`translate(24, ${166 + i * 14})`}>
+          <text x="0" y="6" fontFamily="Geist, sans-serif" fontSize="5.5" fill="#0f172a">{d.l}</text>
+          <text x="86" y="6" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.5" textAnchor="end">{d.c}</text>
+        </g>
+      ))}
+      <line x1="124" y1="40" x2="124" y2="211" stroke="#e2e8f0" strokeWidth="0.5" />
+      {/* Search and filter row */}
+      <rect x="132" y="50" width="178" height="14" rx="4" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <circle cx="140" cy="57" r="2.5" fill="none" stroke="#0f172a" strokeOpacity="0.4" strokeWidth="0.6" />
+      <text x="146" y="60" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.5">Role, location, date</text>
+      <rect x="314" y="50" width="40" height="14" rx="4" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="334" y="60" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.7" textAnchor="middle">📅 This wk</text>
+      <rect x="358" y="50" width="22" height="14" rx="4" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="369" y="60" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.7" textAnchor="middle">⚙ 3</text>
+      {/* Shifts list */}
+      {shifts.map((s, i) => (
+        <g key={i} transform={`translate(132, ${74 + i * 32})`}>
+          <rect width="248" height="28" rx="6" fill="#fff" stroke="#e2e8f0" strokeWidth="0.4" />
+          <rect x="6" y="6" width="16" height="16" rx="3" fill={s.iconBg} />
+          <rect x="10" y="10" width="8" height="8" rx="1" fill="none" stroke={s.tagColor} strokeWidth="0.6" />
+          <text x="28" y="13" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a">{s.role}</text>
+          <text x="28" y="22" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.55">{s.when}</text>
+          <text x="180" y="13" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#0f172a" textAnchor="end">{s.pay}</text>
+          <rect x={s.tag === 'Pending' ? 152 : 158} y="16" width={s.tag === 'Pending' ? 28 : 22} height="7" rx="3" fill={s.tagBg} />
+          <text x={s.tag === 'Pending' ? 166 : 169} y="21" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill={s.tagColor} textAnchor="middle">{s.tag}</text>
+          <rect x="186" y="6" width="56" height="16" rx="4" fill="#0f172a" />
+          <text x="214" y="16" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#fff" textAnchor="middle">Claim shift</text>
+        </g>
+      ))}
+      <rect x="0" y="0" width="0" height="0" fill={color} />
+    </svg>
+  );
+}
+
+function MockLaborCost({ color }: MockProps) {
+  const stats = [
+    { label: 'PROJECTED PAYROLL', value: '$84.2k', sub: '+3.4% vs budget' },
+    { label: 'BUDGET', value: '$81.5k', bar: 0.84, barColor: '#D97706' },
+    { label: 'OVERTIME RISK', value: '$3.1k', sub: '7 staff at risk', valueColor: '#D97706' },
+    { label: 'LOCATIONS', value: '3 / 9', sub: 'Over budget' },
+  ];
+  const variance = [
+    { dept: 'Front of house', amount: '+$1,840', color: '#D97706' },
+    { dept: 'Kitchen',        amount: '−$420',  color: '#16A34A' },
+    { dept: 'Catering',       amount: '+$960',  color: '#D97706' },
+    { dept: 'Custodial',      amount: '+$120',  color: '#0f172a' },
+  ];
+  return (
+    <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bgLabor" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#E8E9F4" />
+          <stop offset="55%" stopColor="#EFEAFB" />
+          <stop offset="100%" stopColor="#DCE7FB" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="225" fill="url(#bgLabor)" />
+      <rect x="14" y="14" width="372" height="197" rx="10" fill="#fff" />
+      <text x="22" y="29" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">Labor Cost Forecasting ·</text>
+      <text x="92" y="29" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a">Forecast overview</text>
+      <text x="22" y="48" fontFamily="Geist, sans-serif" fontSize="11" fontWeight="700" fill="#0f172a">Next week's projection</text>
+      <text x="22" y="58" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">May 11 – May 17 · all locations</text>
+      <rect x="276" y="42" width="56" height="14" rx="4" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="304" y="52" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.7" textAnchor="middle">📅 Next wk</text>
+      <rect x="336" y="42" width="48" height="14" rx="4" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="360" y="52" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.7" textAnchor="middle">⬇ Export</text>
+      {stats.map((s, i) => (
+        <g key={i} transform={`translate(${22 + i * 91}, 70)`}>
+          <rect width="84" height="44" rx="6" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+          <text x="8" y="10" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#0f172a" opacity="0.55">{s.label}</text>
+          <text x="8" y="26" fontFamily="Geist, sans-serif" fontSize="14" fontWeight="700" fill={s.valueColor ?? '#0f172a'}>{s.value}</text>
+          {s.bar !== undefined ? (
+            <>
+              <rect x="8" y="32" width="68" height="4" rx="2" fill="#0f172a" opacity="0.06" />
+              <rect x="8" y="32" width={68 * s.bar} height="4" rx="2" fill={s.barColor} />
+            </>
+          ) : (
+            <text x="8" y="38" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.55">{s.sub}</text>
+          )}
+        </g>
+      ))}
+      {/* Daily labor cost vs budget chart */}
+      <rect x="22" y="120" width="208" height="86" rx="8" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="30" y="132" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#0f172a" opacity="0.55">DAILY LABOR COST VS BUDGET</text>
+      <rect x="206" y="125" width="20" height="9" rx="4" fill="#F1F5F9" />
+      <text x="216" y="131" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill="#0f172a" opacity="0.7" textAnchor="middle">Forecast</text>
+      <line x1="32" y1="172" x2="222" y2="172" stroke="#D97706" strokeWidth="0.8" strokeDasharray="2 2" opacity="0.7" />
+      <path d="M32 188 L62 178 L92 182 L122 168 L152 156 L182 152 L212 162" stroke="#3B82F6" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M32 188 L62 178 L92 182 L122 168 L152 156 L182 152 L212 162 L212 198 L32 198 Z" fill="#3B82F6" opacity="0.1" />
+      <circle cx="32" cy="201" r="1.5" fill="#0f172a" />
+      <text x="38" y="203" fontFamily="Geist, sans-serif" fontSize="4.5" fill="#0f172a" opacity="0.6">Projected</text>
+      <line x1="68" y1="201" x2="76" y2="201" stroke="#D97706" strokeWidth="0.8" />
+      <text x="80" y="203" fontFamily="Geist, sans-serif" fontSize="4.5" fill="#0f172a" opacity="0.6">Budget</text>
+      {/* Variance by department */}
+      <rect x="238" y="120" width="142" height="86" rx="8" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="246" y="132" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#0f172a" opacity="0.55">VARIANCE BY DEPARTMENT</text>
+      {variance.map((v, i) => (
+        <g key={v.dept} transform={`translate(246, ${144 + i * 14})`}>
+          <text x="0" y="6" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#0f172a">{v.dept}</text>
+          <text x="126" y="6" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="700" fill={v.color} textAnchor="end">{v.amount}</text>
+        </g>
+      ))}
+      <rect x="0" y="0" width="0" height="0" fill={color} />
+    </svg>
+  );
+}
+
+function MockAvailability({ color, soft }: MockProps) {
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const times = ['8 AM','12 PM','4 PM','8 PM'];
+  // a=available, t=time off, o=off
+  const grid: ('a'|'t'|'o')[][] = [
+    ['a','a','a','a','o','a','o'],
+    ['a','a','a','a','o','a','o'],
+    ['a','a','a','t','o','a','o'],
+    ['o','a','a','o','o','o','o'],
+  ];
+  const cell = (state: 'a'|'t'|'o') => {
+    if (state === 'a') return { fill: color, op: 0.18, text: 'Available', textColor: color };
+    if (state === 't') return { fill: '#E08B4A', op: 0.18, text: 'Time off', textColor: '#A95F1F' };
+    return { fill: '#0f172a', op: 0.04, text: 'Off', textColor: '#0f172a' };
+  };
+  return (
+    <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bgAvail" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#E8E9F4" />
+          <stop offset="55%" stopColor="#EFEAFB" />
+          <stop offset="100%" stopColor="#DCE7FB" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="225" fill="url(#bgAvail)" />
+      <rect x="14" y="14" width="372" height="197" rx="10" fill="#fff" />
+      <text x="22" y="30" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">Availability ·</text>
+      <text x="50" y="30" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a">Your availability</text>
+      <text x="22" y="49" fontFamily="Geist, sans-serif" fontSize="11" fontWeight="700" fill="#0f172a">Weekly availability</text>
+      <text x="22" y="60" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.55">Recurring · effective May 6 onward</text>
+      <rect x="278" y="42" width="60" height="14" rx="7" fill="#fff" stroke="#e2e8f0" />
+      <text x="284" y="52" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.7">✓ Saved 2 min ago</text>
+      <rect x="342" y="42" width="42" height="14" rx="4" fill="#0f172a" />
+      <text x="348" y="52" fontFamily="Geist, sans-serif" fontSize="6" fill="#fff" fontWeight="600">Submit</text>
+      <g transform="translate(22, 70)">
+        {days.map((d, i) => (
+          <text key={d} x={28 + i * 46} y="8" fontFamily="Geist, sans-serif" fontSize="7" fontWeight="600" fill="#0f172a" opacity="0.6">{d}</text>
+        ))}
+        {times.map((t, r) => (
+          <g key={t}>
+            <text x="0" y={32 + r * 30} fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">{t}</text>
+            {grid[r].map((s, c) => {
+              const cfg = cell(s);
+              return (
+                <g key={c}>
+                  <rect x={20 + c * 46} y={18 + r * 30} width="42" height="22" rx="4" fill={cfg.fill} opacity={cfg.op} />
+                  <text x={24 + c * 46} y={32 + r * 30} fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill={cfg.textColor}>{cfg.text}</text>
+                </g>
+              );
+            })}
+          </g>
+        ))}
+      </g>
+      <rect x="22" y="195" width="44" height="9" rx="4" fill={color} opacity="0.18" />
+      <text x="28" y="201" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill={color}>Available</text>
+      <rect x="68" y="195" width="64" height="9" rx="4" fill="#E08B4A" opacity="0.18" />
+      <text x="74" y="201" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#A95F1F">Time off requested</text>
+      <rect x="134" y="195" width="46" height="9" rx="4" fill="#0f172a" opacity="0.05" stroke="#0f172a" strokeOpacity="0.15" />
+      <text x="140" y="201" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#0f172a" opacity="0.7">Unavailable</text>
+    </svg>
+  );
+}
+
+function MockCompliance({ color }: MockProps) {
+  const stats = [
+    { label: 'COMPLIANCE SCORE', value: '94', suffix: '/100', bar: 0.94, barColor: '#16A34A' },
+    { label: 'OPEN VIOLATIONS',  value: '7', sub: '3 critical · 4 moderate', valueColor: '#991B1B' },
+    { label: 'AT-RISK STAFF',    value: '12', sub: 'Of 218 active' },
+    { label: 'RESOLVED',         value: '23', sub: 'Avg 4.2 hrs', valueColor: '#16A34A' },
+  ];
+  const violations = [
+    { name: 'Approaching overtime',     who: 'Maria Alvarez',  dept: 'Front of house', sev: 'Sev 2', sevBg: '#FEF3C7', sevColor: '#92400E' },
+    { name: 'Missed meal break',        who: 'Devon Park',     dept: 'Kitchen',        sev: 'Sev 1', sevBg: '#FEE2E2', sevColor: '#991B1B' },
+    { name: 'Back-to-back close/open',  who: 'Riley Chen',     dept: 'Front of house', sev: 'Sev 2', sevBg: '#FEF3C7', sevColor: '#92400E' },
+    { name: 'Minor working past 10 PM', who: 'Sam Iyer',       dept: 'Hosting',        sev: 'Sev 1', sevBg: '#FEE2E2', sevColor: '#991B1B' },
+    { name: 'Unsigned timecard',        who: 'Jordan Reyes',   dept: 'Catering',       sev: 'Sev 3', sevBg: '#FEF9C3', sevColor: '#854D0E' },
+  ];
+  return (
+    <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bgCompliance" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#E8E9F4" />
+          <stop offset="55%" stopColor="#EFEAFB" />
+          <stop offset="100%" stopColor="#DCE7FB" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="225" fill="url(#bgCompliance)" />
+      <rect x="14" y="14" width="372" height="197" rx="10" fill="#fff" />
+      <text x="22" y="29" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">Compliance Monitor ·</text>
+      <text x="84" y="29" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a">Compliance overview</text>
+      <line x1="14" y1="40" x2="386" y2="40" stroke="#e2e8f0" strokeWidth="0.5" />
+      {stats.map((s, i) => (
+        <g key={i} transform={`translate(${22 + i * 91}, 50)`}>
+          <rect width="84" height="44" rx="6" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+          <text x="8" y="10" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#0f172a" opacity="0.55">{s.label}</text>
+          <text x="8" y="26" fontFamily="Geist, sans-serif" fontSize="13" fontWeight="700" fill={s.valueColor ?? '#0f172a'}>{s.value}</text>
+          {s.suffix && <text x={8 + 18} y="26" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">{s.suffix}</text>}
+          {s.bar !== undefined ? (
+            <>
+              <rect x="8" y="32" width="68" height="4" rx="2" fill="#0f172a" opacity="0.06" />
+              <rect x="8" y="32" width={68 * s.bar} height="4" rx="2" fill={s.barColor} />
+            </>
+          ) : (
+            <text x="8" y="38" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.55">{s.sub}</text>
+          )}
+        </g>
+      ))}
+      {/* Active violations table */}
+      <rect x="22" y="100" width="358" height="106" rx="8" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="30" y="112" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="700" fill="#0f172a">Active violations</text>
+      <text x="370" y="112" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.5" textAnchor="end">Last 7 days · ⬇ Export</text>
+      <rect x="22" y="118" width="358" height="12" fill="#F8FAFC" />
+      <text x="30" y="126" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill="#0f172a" opacity="0.55">VIOLATION</text>
+      <text x="160" y="126" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill="#0f172a" opacity="0.55">EMPLOYEE</text>
+      <text x="240" y="126" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill="#0f172a" opacity="0.55">DEPT</text>
+      <text x="304" y="126" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill="#0f172a" opacity="0.55">SEV</text>
+      <text x="344" y="126" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill="#0f172a" opacity="0.55">STATUS</text>
+      {violations.map((v, i) => (
+        <g key={i} transform={`translate(30, ${136 + i * 14})`}>
+          <text x="0" y="6" fontFamily="Geist, sans-serif" fontSize="5" fill="#DC2626">⚠</text>
+          <text x="6" y="6" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="500" fill="#0f172a">{v.name}</text>
+          <text x="130" y="6" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a">{v.who}</text>
+          <text x="210" y="6" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.7">{v.dept}</text>
+          <rect x="270" y="0" width="22" height="9" rx="4" fill={v.sevBg} />
+          <text x="281" y="6" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill={v.sevColor} textAnchor="middle">{v.sev}</text>
+          <rect x="305" y="0" width="38" height="9" rx="4" fill="#fff" stroke="#e2e8f0" strokeWidth="0.4" />
+          <text x="324" y="6" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="500" fill="#0f172a" opacity="0.7" textAnchor="middle">In review</text>
+        </g>
+      ))}
+      <rect x="0" y="0" width="0" height="0" fill={color} />
+    </svg>
+  );
+}
+
+function MockTimeClock({ color }: MockProps) {
+  return (
+    <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bgClock" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#E8E9F4" />
+          <stop offset="55%" stopColor="#EFEAFB" />
+          <stop offset="100%" stopColor="#DCE7FB" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="225" fill="url(#bgClock)" />
+      <rect x="14" y="14" width="372" height="197" rx="10" fill="#fff" />
+      <text x="22" y="29" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">Smart Time Clock ·</text>
+      <text x="78" y="29" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a">Clock in</text>
+      <line x1="14" y1="40" x2="386" y2="40" stroke="#e2e8f0" strokeWidth="0.5" />
+      {/* Center area */}
+      <text x="142" y="60" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#0f172a" opacity="0.6" textAnchor="middle">TUESDAY · MAY 6 · 8:57 AM</text>
+      <circle cx="142" cy="130" r="56" fill="#0f172a" />
+      <text x="142" y="118" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#fff" opacity="0.5" textAnchor="middle">TAP TO</text>
+      <text x="142" y="138" fontFamily="Geist, sans-serif" fontSize="20" fontWeight="700" fill="#fff" textAnchor="middle">Clock in</text>
+      <text x="142" y="152" fontFamily="Geist, sans-serif" fontSize="5" fill="#fff" opacity="0.5" textAnchor="middle">8:57:14 AM</text>
+      <rect x="86" y="194" width="56" height="12" rx="6" fill="#DCFCE7" />
+      <text x="114" y="202" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill="#166534" textAnchor="middle">📍 GPS verified</text>
+      <rect x="146" y="194" width="48" height="12" rx="6" fill="#DBEAFE" />
+      <text x="170" y="202" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill="#1E40AF" textAnchor="middle">📷 Photo ready</text>
+      {/* Today's shift card */}
+      <rect x="244" y="50" width="136" height="44" rx="8" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="252" y="62" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#0f172a" opacity="0.55">TODAY'S SHIFT</text>
+      <text x="252" y="76" fontFamily="Geist, sans-serif" fontSize="6.5" fontWeight="700" fill="#0f172a">Line Cook · 9 AM – 5 PM</text>
+      <text x="252" y="86" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.55">Downtown · 30 min unpaid break</text>
+      {/* Pay period card */}
+      <rect x="244" y="100" width="136" height="50" rx="8" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="252" y="112" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#0f172a" opacity="0.55">THIS PAY PERIOD</text>
+      <text x="252" y="128" fontFamily="Geist, sans-serif" fontSize="14" fontWeight="700" fill="#0f172a">28.5</text>
+      <text x="280" y="128" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.55">hrs</text>
+      <rect x="252" y="134" width="120" height="3" rx="1.5" fill="#0f172a" opacity="0.06" />
+      <rect x="252" y="134" width="74" height="3" rx="1.5" fill="#0f172a" />
+      <text x="252" y="146" fontFamily="Geist, sans-serif" fontSize="4.5" fill="#0f172a" opacity="0.55">62% of 46 hr cap</text>
+      {/* Recent card */}
+      <rect x="244" y="156" width="136" height="50" rx="8" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="252" y="168" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#0f172a" opacity="0.55">RECENT</text>
+      <rect x="252" y="174" width="10" height="10" rx="2" fill="#DCFCE7" />
+      <path d="M254 179 L256 181 L260 177" stroke="#16A34A" strokeWidth="0.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <text x="266" y="180" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#0f172a">Clock out</text>
+      <text x="266" y="186" fontFamily="Geist, sans-serif" fontSize="4" fill="#0f172a" opacity="0.55">Yesterday · 5:02 PM</text>
+      <rect x="252" y="190" width="10" height="10" rx="2" fill="#DBEAFE" />
+      <text x="254" y="198" fontFamily="Geist, sans-serif" fontSize="6" fill="#1E40AF">📅</text>
+      <text x="266" y="196" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#0f172a">Break ended</text>
+      <text x="266" y="202" fontFamily="Geist, sans-serif" fontSize="4" fill="#0f172a" opacity="0.55">Yesterday · 1:30 PM</text>
+      <rect x="0" y="0" width="0" height="0" fill={color} />
+    </svg>
+  );
+}
+
+function MockRecruiting({ color }: MockProps) {
+  const stages = [
+    { name: 'APPLIED', count: 24, items: [
+      { name: 'Casey Wu', role: 'Line Cook', tag: 'Line', tagColor: '#3B82F6', tagBg: '#DBEAFE' },
+      { name: 'Pat Diaz', role: 'Server', tag: 'Server', tagColor: '#7C3AED', tagBg: '#EDE9FE' },
+      { name: 'Mae Lin', role: 'Server', tag: 'Server', tagColor: '#7C3AED', tagBg: '#EDE9FE' },
+    ]},
+    { name: 'SCREENING', count: 11, items: [
+      { name: 'Avery Cole', role: 'Shift Lead', tag: 'Shift', tagColor: '#8B5CF6', tagBg: '#EDE9FE' },
+      { name: 'Tomi Asuka', role: 'Line Cook', tag: 'Line', tagColor: '#3B82F6', tagBg: '#DBEAFE' },
+    ]},
+    { name: 'INTERVIEW', count: 6, items: [
+      { name: 'Ren Park', role: 'Line Cook', tag: 'Line', tagColor: '#3B82F6', tagBg: '#DBEAFE' },
+      { name: 'Jules Vance', role: 'Manager', tag: 'Manager', tagColor: '#D97706', tagBg: '#FEF3C7' },
+    ]},
+    { name: 'OFFER', count: 3, items: [
+      { name: 'Sam Patel', role: 'Server', tag: 'Server', tagColor: '#16A34A', tagBg: '#DCFCE7' },
+      { name: 'Iris Bek', role: 'Shift Lead', tag: 'Shift', tagColor: '#16A34A', tagBg: '#DCFCE7' },
+    ]},
+  ];
+  return (
+    <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bgRecruit" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#E8E9F4" />
+          <stop offset="55%" stopColor="#EFEAFB" />
+          <stop offset="100%" stopColor="#DCE7FB" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="225" fill="url(#bgRecruit)" />
+      <rect x="14" y="14" width="372" height="197" rx="10" fill="#fff" />
+      <text x="22" y="29" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">Recruiting ·</text>
+      <text x="50" y="29" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a">Pipeline</text>
+      <text x="22" y="48" fontFamily="Geist, sans-serif" fontSize="11" fontWeight="700" fill="#0f172a">Candidate pipeline</text>
+      <text x="22" y="58" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">44 active candidates · 3 ready for onboarding</text>
+      <rect x="200" y="42" width="62" height="14" rx="4" fill="#fff" stroke="#e2e8f0" />
+      <circle cx="208" cy="49" r="3" fill="none" stroke="#0f172a" strokeOpacity="0.5" strokeWidth="0.8" />
+      <text x="216" y="52" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">Search</text>
+      <rect x="266" y="42" width="48" height="14" rx="4" fill="#fff" stroke="#e2e8f0" />
+      <text x="272" y="52" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.7">All roles</text>
+      <rect x="318" y="42" width="60" height="14" rx="4" fill="#0f172a" />
+      <text x="324" y="52" fontFamily="Geist, sans-serif" fontSize="6" fill="#fff" fontWeight="600">+ Add</text>
+      {stages.map((s, i) => (
+        <g key={s.name} transform={`translate(${22 + i * 90}, 70)`}>
+          <rect width="84" height="138" rx="8" fill="#F8FAFC" />
+          <text x="8" y="14" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a" opacity="0.55">{s.name}</text>
+          <text x="74" y="14" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a" opacity="0.55" textAnchor="end">{s.count}</text>
+          {s.items.map((it, j) => (
+            <g key={j} transform={`translate(6, ${22 + j * 32})`}>
+              <rect width="72" height="28" rx="6" fill="#fff" />
+              <circle cx="12" cy="10" r="4" fill="#0f172a" opacity="0.1" />
+              <text x="20" y="11" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#0f172a">{it.name}</text>
+              <text x="20" y="18" fontFamily="Geist, sans-serif" fontSize="4.5" fill="#0f172a" opacity="0.55">{it.role}</text>
+              <rect x="6" y="20" width={it.tag.length * 3.5 + 6} height="6" rx="3" fill={it.tagBg} />
+              <text x={9} y="24.5" fontFamily="Geist, sans-serif" fontSize="4" fontWeight="600" fill={it.tagColor}>{it.tag}</text>
+              <text x="68" y="24.5" fontFamily="Geist, sans-serif" fontSize="4" fill="#0f172a" opacity="0.4" textAnchor="end">2d</text>
+            </g>
+          ))}
+          <rect x="6" y={22 + s.items.length * 32} width="72" height="22" rx="6" fill="none" stroke="#0f172a" strokeOpacity="0.15" strokeDasharray="2 2" />
+          <text x="42" y={36 + s.items.length * 32} fontFamily="Geist, sans-serif" fontSize="4.5" fill="#0f172a" opacity="0.4" textAnchor="middle">+ Drop here</text>
+        </g>
+      ))}
+      <rect x="0" y="0" width="0" height="0" fill={color} />
+    </svg>
+  );
+}
+
+function MockMessaging({ color }: MockProps) {
+  const channels = [
+    { name: '#shift-alerts', preview: 'New shift opened: Sat Line Cook', time: '3 min', active: true },
+    { name: 'Front of house', preview: 'Maria: Trading Friday close, anyone?', time: '12 min' },
+    { name: '#emergency', preview: 'Storm closure in effect for Westside', time: '1 hr' },
+    { name: 'Closing crew', preview: 'Rotation posted for the week', time: '3 hr' },
+    { name: 'Catering team', preview: 'Approved: Hartford banquet roster', time: 'Yest' },
+  ];
+  return (
+    <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bgMsg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#E8E9F4" />
+          <stop offset="55%" stopColor="#EFEAFB" />
+          <stop offset="100%" stopColor="#DCE7FB" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="225" fill="url(#bgMsg)" />
+      <rect x="14" y="14" width="372" height="197" rx="10" fill="#fff" />
+      <text x="22" y="29" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">Messaging Center ·</text>
+      <text x="76" y="29" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a">Team inbox</text>
+      <line x1="14" y1="40" x2="386" y2="40" stroke="#e2e8f0" strokeWidth="0.5" />
+      {/* Sidebar */}
+      <rect x="14" y="40" width="120" height="171" fill="#F8FAFC" />
+      <text x="22" y="55" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a">Channels</text>
+      <text x="124" y="55" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5" textAnchor="end">+</text>
+      {channels.map((c, i) => (
+        <g key={c.name} transform={`translate(18, ${64 + i * 28})`}>
+          {c.active && <rect x="-2" y="-2" width="116" height="24" rx="4" fill="#fff" />}
+          <text x="0" y="6" fontFamily="Geist, sans-serif" fontSize="6" fontWeight={c.active ? '600' : '500'} fill="#0f172a">{c.name}</text>
+          <text x="112" y="6" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.45" textAnchor="end">{c.time}</text>
+          <text x="0" y="14" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.55">{c.preview.length > 28 ? c.preview.slice(0, 28) + '...' : c.preview}</text>
+        </g>
+      ))}
+      {/* Main pane */}
+      <text x="142" y="55" fontFamily="Geist, sans-serif" fontSize="8" fontWeight="700" fill="#0f172a">#shift-alerts</text>
+      <text x="142" y="65" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.55">42 members · auto-broadcast</text>
+      <rect x="296" y="46" width="50" height="13" rx="6" fill="#FEE2E2" />
+      <text x="304" y="55" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#B91C1C">⚠ Emergency</text>
+      <rect x="349" y="46" width="32" height="13" rx="4" fill="#0f172a" />
+      <text x="365" y="55" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#fff" textAnchor="middle">Broadcast</text>
+      <line x1="142" y1="72" x2="381" y2="72" stroke="#e2e8f0" strokeWidth="0.5" />
+      {/* Messages */}
+      <rect x="142" y="80" width="190" height="22" rx="4" fill="#F8FAFC" />
+      <text x="148" y="89" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a">A new shift was just opened: Saturday Line</text>
+      <text x="148" y="97" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a">Cook · Downtown Kitchen · $22.50/hr</text>
+      <rect x="142" y="108" width="170" height="36" rx="6" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <rect x="148" y="113" width="34" height="8" rx="4" fill="#DBEAFE" />
+      <text x="151" y="119" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill="#3B82F6">Linked shift</text>
+      <text x="186" y="119" fontFamily="Geist, sans-serif" fontSize="4.5" fill="#0f172a" opacity="0.55">Sat · 10 AM – 6 PM · 2.1 mi</text>
+      <text x="148" y="130" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a">Line Cook · Downtown Kitchen</text>
+      <rect x="148" y="134" width="32" height="8" rx="4" fill="#0f172a" />
+      <text x="164" y="140" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill="#fff" textAnchor="middle">Claim shift</text>
+      <rect x="184" y="134" width="36" height="8" rx="4" fill="#fff" stroke="#e2e8f0" strokeWidth="0.4" />
+      <text x="202" y="140" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill="#0f172a" textAnchor="middle">View details</text>
+      <rect x="218" y="150" width="156" height="20" rx="6" fill="#0f172a" />
+      <text x="226" y="159" fontFamily="Geist, sans-serif" fontSize="5" fill="#fff">Posting to floor leads first — please</text>
+      <text x="226" y="166" fontFamily="Geist, sans-serif" fontSize="5" fill="#fff">confirm receipt.</text>
+      <rect x="142" y="176" width="100" height="14" rx="4" fill="#DCFCE7" />
+      <text x="148" y="185" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#166534">✓ Read</text>
+      <text x="170" y="185" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.6">18 of 42 read · 4 ack</text>
+      <rect x="142" y="195" width="240" height="12" rx="6" fill="#F8FAFC" stroke="#e2e8f0" strokeWidth="0.4" />
+      <text x="148" y="203" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.4">💬 Message #shift-alerts</text>
+      <rect x="0" y="0" width="0" height="0" fill={color} />
+    </svg>
+  );
+}
+
+function MockClientPortal({ color }: MockProps) {
+  const stats = [
+    { label: 'ACTIVE REQUESTS', value: '4', sub: '2 filling · 1 filled' },
+    { label: 'WORKERS PLACED (MTD)', value: '38', sub: '+12% vs last month' },
+    { label: 'FILL RATE', value: '96%', bar: 0.96, barColor: '#16A34A' },
+  ];
+  const requests = [
+    { name: 'Saturday banquet',   sub: 'Apex Hotels · 12 servers · 3 leads', pct: 0.67, status: 'Filling',       statusBg: '#DBEAFE', statusColor: '#1E40AF', barColor: '#3B82F6', iconBg: '#DBEAFE' },
+    { name: 'Weekend cleaning crew', sub: 'Brightway Offices · 8 cleaners',  pct: 1.00, status: 'Filled',       statusBg: '#DCFCE7', statusColor: '#166534', barColor: '#16A34A', iconBg: '#DCFCE7' },
+    { name: 'Conference setup',   sub: 'Hartford Convention · 24 staff',     pct: 0.41, status: 'Action needed', statusBg: '#FEF3C7', statusColor: '#92400E', barColor: '#D97706', iconBg: '#FEF3C7' },
+    { name: 'Overnight inventory', sub: 'Polaris Logistics · 6 warehouse',   pct: 0.05, status: 'New',           statusBg: '#F1F5F9', statusColor: '#475569', barColor: '#3B82F6', iconBg: '#DBEAFE' },
+  ];
+  return (
+    <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bgStaffing" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#E8E9F4" />
+          <stop offset="55%" stopColor="#EFEAFB" />
+          <stop offset="100%" stopColor="#DCE7FB" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="225" fill="url(#bgStaffing)" />
+      <rect x="14" y="14" width="372" height="197" rx="10" fill="#fff" />
+      <text x="22" y="29" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">Staffing Portal ·</text>
+      <text x="72" y="29" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a">Your requests</text>
+      <text x="22" y="48" fontFamily="Geist, sans-serif" fontSize="11" fontWeight="700" fill="#0f172a">Welcome back, Apex Hotels</text>
+      <text x="22" y="58" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">4 active requests · 2 awaiting your approval</text>
+      <rect x="262" y="42" width="56" height="14" rx="4" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="290" y="52" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.7" textAnchor="middle">📅 This mo</text>
+      <rect x="322" y="42" width="62" height="14" rx="4" fill="#0f172a" />
+      <text x="353" y="52" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#fff" textAnchor="middle">+ New request</text>
+      {stats.map((s, i) => (
+        <g key={i} transform={`translate(${22 + i * 121}, 68)`}>
+          <rect width="114" height="42" rx="6" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+          <text x="8" y="10" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#0f172a" opacity="0.55">{s.label}</text>
+          <text x="8" y="26" fontFamily="Geist, sans-serif" fontSize="13" fontWeight="700" fill="#0f172a">{s.value}</text>
+          {s.bar !== undefined ? (
+            <>
+              <rect x="8" y="32" width="98" height="4" rx="2" fill="#0f172a" opacity="0.06" />
+              <rect x="8" y="32" width={98 * s.bar} height="4" rx="2" fill={s.barColor} />
+            </>
+          ) : (
+            <text x="8" y="38" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.55">{s.sub}</text>
+          )}
+        </g>
+      ))}
+      {/* Open requests panel */}
+      <rect x="22" y="116" width="358" height="90" rx="8" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="30" y="128" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="700" fill="#0f172a">Open requests</text>
+      <text x="370" y="128" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.5" textAnchor="end">Sorted by status</text>
+      <line x1="30" y1="134" x2="372" y2="134" stroke="#e2e8f0" strokeWidth="0.4" />
+      {requests.map((r, i) => (
+        <g key={i} transform={`translate(30, ${140 + i * 16})`}>
+          <rect width="14" height="12" rx="3" fill={r.iconBg} />
+          <circle cx="5" cy="5" r="1.5" fill={r.statusColor} />
+          <circle cx="9" cy="5" r="1.5" fill={r.statusColor} />
+          <text x="20" y="6" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#0f172a">{r.name}</text>
+          <text x="20" y="11" fontFamily="Geist, sans-serif" fontSize="4.5" fill="#0f172a" opacity="0.55">{r.sub}</text>
+          <rect x="166" y="3" width="80" height="3" rx="1.5" fill="#0f172a" opacity="0.06" />
+          <rect x="166" y="3" width={80 * r.pct} height="3" rx="1.5" fill={r.barColor} />
+          <text x="166" y="11" fontFamily="Geist, sans-serif" fontSize="4.5" fill="#0f172a" opacity="0.55">{Math.round(r.pct * 100)}% fulfilled</text>
+          <rect x="252" y="0" width="50" height="11" rx="5" fill={r.statusBg} />
+          <text x="277" y="7" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill={r.statusColor} textAnchor="middle">{r.status}</text>
+          <rect x="306" y="0" width="22" height="11" rx="4" fill="#fff" stroke="#e2e8f0" strokeWidth="0.4" />
+          <text x="317" y="7" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill="#0f172a" textAnchor="middle">View</text>
+        </g>
+      ))}
+      <rect x="0" y="0" width="0" height="0" fill={color} />
+    </svg>
+  );
+}
+
+function MockCredential({ color }: MockProps) {
+  const stats = [
+    { label: 'ACTIVE', value: '182', sub: 'Verified & current', color: '#16A34A' },
+    { label: 'EXPIRING SOON', value: '14', sub: 'Within 30 days', color: '#D97706' },
+    { label: 'EXPIRED', value: '3', sub: 'Blocking shift assignment', color: '#DC2626' },
+    { label: 'PENDING REVIEW', value: '8', sub: 'Awaiting approval', color: '#0f172a' },
+  ];
+  const alerts = [
+    { name: 'Food handler permit', who: 'Maria Alvarez · Expires in 14 days', tag: 'Action soon', tagBg: '#FEF3C7', tagColor: '#92400E', iconBg: '#FEF3C7', iconStroke: '#D97706' },
+    { name: 'CPR certification', who: 'Devon Park · Expires in 92 days', tag: 'Active', tagBg: '#DCFCE7', tagColor: '#166534', iconBg: '#DCFCE7', iconStroke: '#16A34A' },
+    { name: 'Driver license', who: 'Riley Chen · Expired 3 days ago', tag: 'Expired', tagBg: '#FEE2E2', tagColor: '#991B1B', iconBg: '#FEE2E2', iconStroke: '#DC2626' },
+    { name: 'ServSafe manager', who: 'Jordan Reyes · Expires in 6 months', tag: 'Active', tagBg: '#DCFCE7', tagColor: '#166534', iconBg: '#DCFCE7', iconStroke: '#16A34A' },
+  ];
+  return (
+    <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bgCred" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#E8E9F4" />
+          <stop offset="55%" stopColor="#EFEAFB" />
+          <stop offset="100%" stopColor="#DCE7FB" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="225" fill="url(#bgCred)" />
+      <rect x="14" y="14" width="372" height="197" rx="10" fill="#fff" />
+      <text x="22" y="29" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">Credential Tracker ·</text>
+      <text x="80" y="29" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a">Credential overview</text>
+      <text x="22" y="48" fontFamily="Geist, sans-serif" fontSize="11" fontWeight="700" fill="#0f172a">Credential overview</text>
+      <text x="22" y="58" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">218 active employees · 9 credential types tracked</text>
+      <rect x="262" y="42" width="64" height="14" rx="4" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="270" y="52" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.7">All credentials</text>
+      <rect x="328" y="42" width="56" height="14" rx="4" fill="#0f172a" />
+      <text x="356" y="52" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#fff" textAnchor="middle">+ Upload</text>
+      {stats.map((s, i) => (
+        <g key={i} transform={`translate(${22 + i * 91}, 70)`}>
+          <rect width="84" height="44" rx="6" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+          <text x="8" y="10" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#0f172a" opacity="0.55">{s.label}</text>
+          <text x="8" y="26" fontFamily="Geist, sans-serif" fontSize="14" fontWeight="700" fill={s.color}>{s.value}</text>
+          <text x="8" y="38" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.55">{s.sub}</text>
+        </g>
+      ))}
+      <rect x="22" y="120" width="358" height="86" rx="8" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="30" y="132" fontFamily="Geist, sans-serif" fontSize="7" fontWeight="700" fill="#0f172a">Expiration alerts</text>
+      <text x="370" y="132" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.5" textAnchor="end">Sorted by urgency</text>
+      <line x1="30" y1="138" x2="372" y2="138" stroke="#e2e8f0" strokeWidth="0.4" />
+      {alerts.map((a, i) => (
+        <g key={i} transform={`translate(30, ${143 + i * 16})`}>
+          <rect width="12" height="12" rx="2" fill={a.iconBg} />
+          <path d={`M2 4 L4 4 L4 2 L8 2 L8 4 L10 4 L10 9 L2 9 Z`} fill="none" stroke={a.iconStroke} strokeWidth="0.6" />
+          <text x="18" y="6" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#0f172a">{a.name}</text>
+          <text x="18" y="11" fontFamily="Geist, sans-serif" fontSize="4.5" fill="#0f172a" opacity="0.55">{a.who}</text>
+          <rect x="280" y="2" width={a.tag.length * 3.5 + 8} height="9" rx="4" fill={a.tagBg} />
+          <text x={284} y="8" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill={a.tagColor}>{a.tag}</text>
+          <rect x="324" y="1" width="20" height="11" rx="4" fill="#fff" stroke="#e2e8f0" strokeWidth="0.4" />
+          <text x="334" y="8" fontFamily="Geist, sans-serif" fontSize="4.5" fontWeight="600" fill="#0f172a" textAnchor="middle">View</text>
+        </g>
+      ))}
+      <rect x="0" y="0" width="0" height="0" fill={color} />
+    </svg>
+  );
+}
+
+function MockPerformance({ color }: MockProps) {
+  const stats = [
+    { label: 'RELIABILITY SCORE', value: '94', suffix: '/100', sub: '', valueColor: '#0f172a', bar: 0.94, barColor: '#16A34A' },
+    { label: 'ATTENDANCE RATE', value: '96.2%', sub: '+0.8% vs prev', valueColor: '#0f172a' },
+    { label: 'NO-SHOW RATE', value: '1.8%', sub: '-0.4% vs prev', valueColor: '#DC2626' },
+    { label: 'AVG TENURE', value: '2.4 yr', sub: 'Across all roles', valueColor: '#0f172a' },
+  ];
+  const performers = [
+    { rank: 1, name: 'Maria Alvarez', role: 'Front of house', score: '98%', delta: '+4', deltaColor: '#16A34A' },
+    { rank: 2, name: 'Devon Park', role: 'Kitchen', score: '97%', delta: '+2', deltaColor: '#16A34A' },
+    { rank: 3, name: 'Riley Chen', role: 'Hosting', score: '95%', delta: '—', deltaColor: '#0f172a' },
+    { rank: 4, name: 'Sam Iyer', role: 'Catering', score: '93%', delta: '-1', deltaColor: '#DC2626' },
+  ];
+  return (
+    <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bgPerf" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#E8E9F4" />
+          <stop offset="55%" stopColor="#EFEAFB" />
+          <stop offset="100%" stopColor="#DCE7FB" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="225" fill="url(#bgPerf)" />
+      <rect x="14" y="14" width="372" height="197" rx="10" fill="#fff" />
+      <text x="22" y="29" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">Performance Insights ·</text>
+      <text x="92" y="29" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a">Performance overview</text>
+      <text x="22" y="48" fontFamily="Geist, sans-serif" fontSize="11" fontWeight="700" fill="#0f172a">Performance overview</text>
+      <text x="22" y="58" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">Last 30 days · 218 active employees · 9 locations</text>
+      <rect x="280" y="42" width="50" height="14" rx="4" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="287" y="52" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.7">📅 Last 30d</text>
+      <rect x="334" y="42" width="44" height="14" rx="4" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="356" y="52" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.7" textAnchor="middle">⬇ Export</text>
+      {stats.map((s, i) => (
+        <g key={i} transform={`translate(${22 + i * 91}, 70)`}>
+          <rect width="84" height="44" rx="6" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+          <text x="8" y="10" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill="#0f172a" opacity="0.55">{s.label}</text>
+          <text x="8" y="26" fontFamily="Geist, sans-serif" fontSize="13" fontWeight="700" fill={s.valueColor}>{s.value}</text>
+          {s.suffix && <text x={8 + s.value.length * 7.5} y="26" fontFamily="Geist, sans-serif" fontSize="6" fill="#0f172a" opacity="0.5">{s.suffix}</text>}
+          {s.bar !== undefined ? (
+            <>
+              <rect x="8" y="32" width="68" height="4" rx="2" fill="#0f172a" opacity="0.06" />
+              <rect x="8" y="32" width={68 * s.bar} height="4" rx="2" fill={s.barColor} />
+            </>
+          ) : (
+            <text x="8" y="38" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.5">{s.sub}</text>
+          )}
+        </g>
+      ))}
+      {/* Attendance trend */}
+      <rect x="22" y="120" width="178" height="86" rx="8" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="30" y="132" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#0f172a" opacity="0.55">ATTENDANCE TREND</text>
+      <text x="192" y="132" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.5" textAnchor="end">Daily</text>
+      <line x1="30" y1="180" x2="192" y2="180" stroke="#0f172a" strokeOpacity="0.05" strokeWidth="0.5" />
+      <path d="M30 175 L50 165 L70 170 L90 155 L110 162 L130 145 L150 152 L170 138 L192 142" stroke="#3B82F6" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M30 175 L50 165 L70 170 L90 155 L110 162 L130 145 L150 152 L170 138 L192 142 L192 200 L30 200 Z" fill="#3B82F6" opacity="0.08" />
+      {/* Top performers */}
+      <rect x="208" y="120" width="172" height="86" rx="8" fill="#fff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="216" y="132" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#0f172a" opacity="0.55">TOP PERFORMERS</text>
+      <text x="372" y="132" fontFamily="Geist, sans-serif" fontSize="5" fill="#0f172a" opacity="0.5" textAnchor="end">Reliability</text>
+      {performers.map((p, i) => (
+        <g key={i} transform={`translate(216, ${140 + i * 16})`}>
+          <text x="0" y="8" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a" opacity="0.55">{p.rank}.</text>
+          <text x="10" y="6" fontFamily="Geist, sans-serif" fontSize="5.5" fontWeight="600" fill="#0f172a">{p.name}</text>
+          <text x="10" y="12" fontFamily="Geist, sans-serif" fontSize="4.5" fill="#0f172a" opacity="0.55">{p.role}</text>
+          <text x="138" y="8" fontFamily="Geist, sans-serif" fontSize="6" fontWeight="600" fill="#0f172a" textAnchor="end">{p.score}</text>
+          <text x="156" y="8" fontFamily="Geist, sans-serif" fontSize="5" fontWeight="600" fill={p.deltaColor} textAnchor="end">{p.delta}</text>
+        </g>
+      ))}
+      <rect x="0" y="0" width="0" height="0" fill={color} />
+    </svg>
+  );
+}
+
+import shiftMarketplacePreview from '../assets/marketplace-previews/shift-marketplace.png';
+import laborCostPreview from '../assets/marketplace-previews/labor-cost-forecasting.png';
+import availabilityPreview from '../assets/marketplace-previews/employee-availability-portal.png';
+import compliancePreview from '../assets/marketplace-previews/compliance-monitor.png';
+import timeClockPreview from '../assets/marketplace-previews/smart-time-clock.png';
+import recruitingPreview from '../assets/marketplace-previews/recruiting-pipeline-dashboard.png';
+import messagingPreview from '../assets/marketplace-previews/workforce-messaging-center.png';
+import clientPortalPreview from '../assets/marketplace-previews/client-staffing-portal.png';
+import credentialPreview from '../assets/marketplace-previews/credential-tracker.png';
+import performancePreview from '../assets/marketplace-previews/performance-insights-dashboard.png';
+
+const APP_PREVIEW_IMAGE: Record<string, string> = {
+  'shift_marketplace':              shiftMarketplacePreview,
+  'labor_cost_forecasting':         laborCostPreview,
+  'employee_availability_portal':   availabilityPreview,
+  'compliance_monitor':             compliancePreview,
+  'smart_time_clock':               timeClockPreview,
+  'recruiting_pipeline_dashboard':  recruitingPreview,
+  'workforce_messaging_center':     messagingPreview,
+  'client_staffing_portal':         clientPortalPreview,
+  'credential_tracker':             credentialPreview,
+  'performance_insights_dashboard': performancePreview,
+};
+
+const PreviewImg = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+`;
+
+function AppPreviewMock({ id, name }: { id: string; name?: string }) {
+  const src = APP_PREVIEW_IMAGE[id];
+  if (!src) return null;
+  return <PreviewImg src={src} alt={name ? `${name} preview` : 'App preview'} />;
+}
+
+const ScreenshotLabel = styled.div`
+  position: absolute;
+  bottom: var(--space-3, 12px);
+  left: var(--space-3, 12px);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  padding: 4px 10px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-opaque);
+  border-radius: 999px;
+`;
+
 const Tagline = styled.p`
   margin: 0;
   font-family: var(--font-sans);
@@ -1011,15 +1773,17 @@ const TagRow = styled.div`
   gap: var(--space-1, 4px);
 `;
 
-const DialogSectionTitle = styled.h4`
+const DialogSectionTitleWrap = styled.div`
   margin: 0 0 var(--space-2, 8px) 0;
-  font-family: var(--font-sans);
-  font-size: var(--text-xs, 0.75rem);
-  font-weight: var(--font-weight-semibold, 600);
-  letter-spacing: var(--tracking-wider, 0.05em);
-  text-transform: uppercase;
-  color: var(--color-content-tertiary);
 `;
+
+function DialogSectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <DialogSectionTitleWrap>
+      <Eyebrow as="h4">{children}</Eyebrow>
+    </DialogSectionTitleWrap>
+  );
+}
 
 const DialogList = styled.ul`
   margin: 0;
@@ -1195,22 +1959,29 @@ function AppPreviewDialog({ app, onClose }: { app: AppDef | null; onClose: () =>
 
       <DialogContent>
         <DialogBody>
+          <Screenshot>
+            <AppPreviewMock id={app.id} name={app.name} />
+          </Screenshot>
+
           <StatGrid>
             <StatCard>
-              <StatLabel>Category</StatLabel>
+              <Eyebrow>Category</Eyebrow>
               <StatValue>{app.category}</StatValue>
             </StatCard>
             <StatCard>
-              <StatLabel>Setup</StatLabel>
+              <Eyebrow>Setup</Eyebrow>
               <LevelBar value={app.preview.setupComplexity} />
             </StatCard>
             <StatCard>
-              <StatLabel>Impact</StatLabel>
+              <Eyebrow>Impact</Eyebrow>
               <LevelBar value={app.preview.estimatedImpact} higherIsBetter />
             </StatCard>
           </StatGrid>
 
-          <Tagline>{app.preview.tagline}</Tagline>
+          <div>
+            <DialogSectionTitle>Description</DialogSectionTitle>
+            <Tagline>{app.preview.tagline}</Tagline>
+          </div>
 
           <div>
             <DialogSectionTitle>Recommended for</DialogSectionTitle>
@@ -1261,8 +2032,8 @@ export function MarketplacePage() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [selectedApp, setSelectedApp] = useState<AppDef | null>(null);
 
-  const popular = COMMUNITY_APPS.slice(0, 4);
-  const featured = COMMUNITY_APPS.slice(4);
+  const popular = COMMUNITY_APPS.slice(0, 6);
+  const featured = COMMUNITY_APPS.slice(6);
 
   const trimmedSearch = search.trim();
   const searchResults = trimmedSearch.length === 0
@@ -1297,7 +2068,7 @@ export function MarketplacePage() {
             onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
           />
           {showDropdown && (
-            <SearchDropdown>
+            <SearchDropdown onMouseDown={(e) => e.preventDefault()}>
               {searchResults.length === 0 ? (
                 <SearchDropdownEmpty>No apps match your search</SearchDropdownEmpty>
               ) : (
@@ -1307,7 +2078,11 @@ export function MarketplacePage() {
                     size="md"
                     divider={false}
                     interactive
-                    onClick={() => handleResultClick(app)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleResultClick(app);
+                    }}
                     label={app.name}
                     description={app.description}
                     leadingSlot={
@@ -1392,6 +2167,602 @@ export function MarketplacePage() {
       )}
 
       <AppPreviewDialog app={selectedApp} onClose={() => setSelectedApp(null)} />
+    </MpPage>
+  );
+}
+
+// ── Marketplace Landing (new default page) ───────────────────────────────
+
+const MlHero = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4, 16px);
+  padding: var(--space-10, 40px) 0 var(--space-2, 8px);
+  text-align: center;
+`;
+
+const MlHeadline = styled.h1`
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-4-5xl, 2.5rem);
+  line-height: var(--line-height-tight, 1.1);
+  font-weight: var(--font-weight-medium, 500);
+  letter-spacing: var(--tracking-tight, -0.02em);
+  color: var(--color-content-primary);
+`;
+
+const MlSubtitle = styled.p`
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base, 1rem);
+  line-height: var(--line-height-relaxed, 1.5);
+  color: var(--color-content-secondary);
+  max-width: 560px;
+`;
+
+const MlComposerWrap = styled.div`
+  width: 100%;
+  max-width: 640px;
+  margin-top: var(--space-4, 16px);
+  text-align: left;
+`;
+
+const MlComposerHint = styled.span`
+  font-family: var(--font-sans);
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--color-content-tertiary);
+  display: inline-flex;
+  align-items: center;
+  margin-right: auto;
+`;
+
+const MlSection = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  width: 70%;
+  max-width: 1280px;
+  margin: var(--space-10, 40px) auto 0;
+
+  @media (max-width: 900px) {
+    width: 100%;
+  }
+`;
+
+const MlSectionHeader = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+`;
+
+const MlSectionHeading = styled.h2`
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-2xl, 1.5rem);
+  line-height: var(--line-height-snug, 1.2);
+  font-weight: var(--font-weight-medium, 500);
+  letter-spacing: var(--tracking-tight, -0.01em);
+  color: var(--color-content-primary);
+`;
+
+const MlSectionCaption = styled.p`
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-content-secondary);
+`;
+
+const MlRecGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3, 12px);
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const MlRecCard = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  padding: var(--space-4, 16px);
+  border: 1px solid var(--color-border-opaque);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--color-bg-primary);
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+
+  &:hover {
+    border-color: var(--color-border-hover, #cfd4dc);
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.04));
+  }
+`;
+
+const MlRecHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+`;
+
+const MlRecIconTile = styled.div`
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md, 12px);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-opaque);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  & svg { width: 26px; height: 26px; }
+`;
+
+const MlRecName = styled.h3`
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base, 1rem);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-content-primary);
+`;
+
+const MlRecDesc = styled.p`
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm, 0.875rem);
+  line-height: var(--line-height-relaxed, 1.45);
+  color: var(--color-content-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+`;
+
+const MlRecMeta = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+`;
+
+const MlCategoryGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3, 12px);
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+`;
+
+const MlCategoryCard = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  padding: var(--space-4, 16px);
+  border: 1px solid var(--color-border-opaque);
+  border-radius: var(--radius-md, 12px);
+  background: var(--color-bg-primary);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+
+  &:hover {
+    border-color: var(--color-border-hover, #cfd4dc);
+    background: var(--color-bg-secondary);
+  }
+`;
+
+const MlCategoryName = styled.span`
+  font-family: var(--font-sans);
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-content-primary);
+`;
+
+const MlCategoryCount = styled.span`
+  font-family: var(--font-sans);
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--color-content-tertiary);
+`;
+
+const RECOMMENDED_APP_IDS = ['shift_marketplace', 'smart_time_clock', 'compliance_monitor'];
+const MARKETPLACE_CATEGORIES = [
+  { name: 'Scheduling',           count: 1 },
+  { name: 'Time Tracking',        count: 1 },
+  { name: 'Workforce Management', count: 1 },
+  { name: 'Compliance',           count: 2 },
+  { name: 'Analytics',            count: 2 },
+  { name: 'Communication',        count: 1 },
+  { name: 'Hiring',               count: 1 },
+  { name: 'Customer Experience',  count: 1 },
+];
+
+export function MarketplaceLandingPage({
+  onOpenInstalled,
+  onOpenCommunity,
+  onOpenApp,
+}: {
+  onOpenInstalled?: () => void;
+  onOpenCommunity?: () => void;
+  onOpenApp?: (appId: string) => void;
+}) {
+  const [prompt, setPrompt] = useState('');
+  const [selectedApp, setSelectedApp] = useState<AppDef | null>(null);
+  const recommended = COMMUNITY_APPS.filter(app => RECOMMENDED_APP_IDS.includes(app.id));
+
+  return (
+    <MpPage>
+      <MlHero>
+        <MlHeadline>Marketplace</MlHeadline>
+        <MlSubtitle>
+          Discover, install, and build last-mile workforce apps. Describe what your team needs and
+          we'll surface the right apps or build a new one with you.
+        </MlSubtitle>
+        <MlComposerWrap>
+          <AIComposerInput
+            value={prompt}
+            onChange={setPrompt}
+            placeholder="Describe the app you want — e.g. 'Track equipment checked out by location and notify managers when overdue'"
+            maxRows={6}
+          >
+            <ComposerActions>
+              <MlComposerHint>Powered by Teambridge AI</MlComposerHint>
+              <ComposerSendButton
+                state={prompt.trim().length === 0 ? 'disabled-invalid' : 'ready'}
+                aria-label="Generate app"
+              />
+            </ComposerActions>
+          </AIComposerInput>
+        </MlComposerWrap>
+      </MlHero>
+
+      <MlSection>
+        <MlSectionHeader>
+          <div>
+            <MlSectionHeading>Recommended apps to install</MlSectionHeading>
+            <MlSectionCaption>Curated for workforce teams like yours</MlSectionCaption>
+          </div>
+          {onOpenCommunity && (
+            <Button
+              variant="tertiary"
+              size="sm"
+              onClick={onOpenCommunity}
+              trailingArtwork={<ArrowNarrowRightIcon size={14} />}
+            >
+              Browse all
+            </Button>
+          )}
+        </MlSectionHeader>
+        <MlRecGrid>
+          {recommended.map(app => (
+            <MlRecCard key={app.id} onClick={() => setSelectedApp(app)}>
+              <MlRecHeader>
+                <MlRecIconTile>{app.shape}</MlRecIconTile>
+                <div>
+                  <MlRecName>{app.name}</MlRecName>
+                  <MlSectionCaption>{app.category}</MlSectionCaption>
+                </div>
+              </MlRecHeader>
+              <MlRecDesc>{app.description}</MlRecDesc>
+              <MlRecMeta>
+                <span />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={(e) => { e.stopPropagation(); onOpenApp?.(app.id); }}
+                >
+                  Use App
+                </Button>
+              </MlRecMeta>
+            </MlRecCard>
+          ))}
+        </MlRecGrid>
+      </MlSection>
+
+      <MlSection>
+        <MlSectionHeader>
+          <div>
+            <MlSectionHeading>Browse by category</MlSectionHeading>
+            <MlSectionCaption>Find apps tailored to a specific workflow</MlSectionCaption>
+          </div>
+          {onOpenInstalled && (
+            <Button
+              variant="tertiary"
+              size="sm"
+              onClick={onOpenInstalled}
+              trailingArtwork={<ArrowNarrowRightIcon size={14} />}
+            >
+              View installed apps
+            </Button>
+          )}
+        </MlSectionHeader>
+        <MlCategoryGrid>
+          {MARKETPLACE_CATEGORIES.map(cat => (
+            <MlCategoryCard key={cat.name} onClick={onOpenCommunity}>
+              <MlCategoryName>{cat.name}</MlCategoryName>
+              <MlCategoryCount>{cat.count} {cat.count === 1 ? 'app' : 'apps'}</MlCategoryCount>
+            </MlCategoryCard>
+          ))}
+        </MlCategoryGrid>
+      </MlSection>
+
+      <AppPreviewDialog app={selectedApp} onClose={() => setSelectedApp(null)} />
+    </MpPage>
+  );
+}
+
+// ── Installed Apps ────────────────────────────────────────────────────────
+
+const InstalledHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4, 16px);
+  flex-wrap: wrap;
+`;
+
+const InstalledHeaderText = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+`;
+
+const InstalledTitle = styled.h1`
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-3xl, 1.875rem);
+  line-height: var(--line-height-snug, 1.2);
+  font-weight: var(--font-weight-medium, 500);
+  letter-spacing: var(--tracking-tight, -0.02em);
+  color: var(--color-content-primary);
+`;
+
+const InstalledSubtitle = styled.p`
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-content-secondary);
+`;
+
+const InstalledHeaderActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+
+  & > button {
+    height: 36px;
+    min-height: 36px;
+    width: 36px;
+    min-width: 36px;
+  }
+
+  & > button:not([aria-label="Search installed apps"]):not([aria-label="Clear search"]) {
+    width: auto;
+    min-width: 0;
+  }
+`;
+
+const InstalledSearchExpand = styled.div`
+  width: 320px;
+  max-width: 100%;
+  animation: searchExpand 180ms var(--ease-default, ease);
+
+  & [class*='_shell_'] {
+    height: 36px;
+    min-height: 36px;
+  }
+
+  @keyframes searchExpand {
+    from { opacity: 0; transform: translateX(8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+`;
+
+const InstalledSection = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  margin-top: var(--space-8, 32px);
+`;
+
+const InstalledSectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  margin-bottom: var(--space-1, 4px);
+`;
+
+const InstalledSectionTitle = styled.h2`
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-lg, 1.125rem);
+  line-height: var(--line-height-snug, 1.2);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-content-primary);
+`;
+
+const InstalledList = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3, 12px);
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const InstalledItem = styled(ListItem)`
+  --li-px: var(--space-4, 16px);
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--color-border-opaque);
+  background: var(--color-bg-primary);
+
+  & [class*='_description_'] {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+`;
+
+const InstalledEmpty = styled.div`
+  padding: var(--space-6, 24px);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-content-tertiary);
+  text-align: center;
+`;
+
+const TEAM_APP_IDS = ['shift_marketplace', 'employee_availability_portal', 'smart_time_clock', 'workforce_messaging_center', 'client_staffing_portal'];
+const BACKGROUND_APP_IDS = ['labor_cost_forecasting', 'compliance_monitor', 'recruiting_pipeline_dashboard', 'credential_tracker', 'performance_insights_dashboard'];
+const INSTALLED_APP_IDS = new Set([
+  'shift_marketplace',
+  'smart_time_clock',
+  'workforce_messaging_center',
+  'compliance_monitor',
+  'performance_insights_dashboard',
+]);
+
+export function InstalledAppsPage({
+  onOpenCommunity,
+  onOpenApp,
+}: {
+  onOpenCommunity?: () => void;
+  onOpenApp?: (appId: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  const closeSearch = () => {
+    setSearch('');
+    setSearchExpanded(false);
+  };
+  const openSearch = () => {
+    setSearchExpanded(true);
+    setTimeout(() => searchInputRef.current?.focus(), 0);
+  };
+
+  const matches = (app: AppDef) => {
+    const q = search.trim().toLowerCase();
+    if (q.length === 0) return true;
+    return app.name.toLowerCase().includes(q) || app.description.toLowerCase().includes(q);
+  };
+
+  const teamApps = COMMUNITY_APPS.filter(a => TEAM_APP_IDS.includes(a.id) && INSTALLED_APP_IDS.has(a.id) && matches(a));
+  const backgroundApps = COMMUNITY_APPS.filter(a => BACKGROUND_APP_IDS.includes(a.id) && INSTALLED_APP_IDS.has(a.id) && matches(a));
+
+  const renderItem = (app: AppDef) => (
+    <InstalledItem
+      key={app.id}
+      size="lg"
+      divider={false}
+      interactive
+      onClick={() => onOpenApp?.(app.id)}
+      label={app.name}
+      description={app.description}
+      leadingSlot={
+        <SearchResultIcon>
+          <ShapeWrap>{app.shape}</ShapeWrap>
+        </SearchResultIcon>
+      }
+      trailingSlot={
+        <Button
+          variant="destructive-secondary"
+          size="sm"
+          onClick={(e) => { e.stopPropagation(); }}
+        >
+          Uninstall
+        </Button>
+      }
+    />
+  );
+
+  return (
+    <MpPage>
+      <InstalledHeader>
+        <InstalledHeaderText>
+          <InstalledTitle>Installed Apps</InstalledTitle>
+          <InstalledSubtitle>Workforce apps your team has installed in this workspace.</InstalledSubtitle>
+        </InstalledHeaderText>
+        <InstalledHeaderActions>
+          {searchExpanded ? (
+            <InstalledSearchExpand>
+              <SearchField
+                ref={searchInputRef}
+                size="md"
+                placeholder="Search installed apps"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onBlur={() => { if (search.trim().length === 0) setSearchExpanded(false); }}
+              />
+            </InstalledSearchExpand>
+          ) : (
+            <Button
+              variant="tertiary"
+              size="md"
+              iconOnly
+              aria-label="Search installed apps"
+              onClick={openSearch}
+            >
+              <SearchSmIcon size={16} />
+            </Button>
+          )}
+          {searchExpanded && search.trim().length > 0 && (
+            <Button
+              variant="tertiary"
+              size="md"
+              iconOnly
+              aria-label="Clear search"
+              onClick={closeSearch}
+            >
+              <XIcon size={16} />
+            </Button>
+          )}
+          {onOpenCommunity && (
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={onOpenCommunity}
+              trailingArtwork={<ArrowNarrowRightIcon size={14} />}
+            >
+              Community Apps
+            </Button>
+          )}
+        </InstalledHeaderActions>
+      </InstalledHeader>
+
+      <InstalledSection>
+        <InstalledSectionHeader>
+          <InstalledSectionTitle>Team apps</InstalledSectionTitle>
+          <Tag size="sm" variant="subtle" color="neutral">{teamApps.length}</Tag>
+        </InstalledSectionHeader>
+        {teamApps.length === 0 ? (
+          <InstalledEmpty>No team apps match your search</InstalledEmpty>
+        ) : (
+          <InstalledList>
+            {teamApps.map(app => renderItem(app))}
+          </InstalledList>
+        )}
+      </InstalledSection>
+
+      <InstalledSection>
+        <InstalledSectionHeader>
+          <InstalledSectionTitle>Background apps</InstalledSectionTitle>
+          <Tag size="sm" variant="subtle" color="neutral">{backgroundApps.length}</Tag>
+        </InstalledSectionHeader>
+        {backgroundApps.length === 0 ? (
+          <InstalledEmpty>No background apps match your search</InstalledEmpty>
+        ) : (
+          <InstalledList>
+            {backgroundApps.map(app => renderItem(app))}
+          </InstalledList>
+        )}
+      </InstalledSection>
     </MpPage>
   );
 }
