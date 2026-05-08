@@ -7,7 +7,7 @@ import {
   Dialog, DialogHeader, DialogContent, DialogFooter,
   CheckCircleIcon, ZapIcon,
   SearchSmIcon, XIcon,
-  Pin01Icon, Download01Icon, ClockIcon,
+  Pin01Icon, Download01Icon, ClockIcon, BookmarkIcon,
   Badge as AlloyBadge,
   AIComposerInput,
   ComposerActions, ComposerSendButton,
@@ -504,6 +504,17 @@ const FeaturedMeta = styled.div`
   margin-top: var(--space-1, 4px);
 `;
 
+const FeaturedFooter = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  margin-top: auto;
+  padding-top: var(--space-2, 8px);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--color-content-tertiary);
+`;
+
 const SectionTitleText = styled.h2`
   margin: 0;
   font-family: var(--font-sans);
@@ -630,22 +641,22 @@ const FeaturedGrid = styled.div`
 `;
 
 const FeaturedCard = styled.div`
-  display: grid;
-  grid-template-columns: 64px 1fr;
-  gap: var(--space-4, 16px);
-  align-items: flex-start;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border-opaque);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  background: var(--color-bg-primary);
+  border: none;
   border-radius: var(--radius-lg, 14px);
   padding: var(--space-5, 20px);
   cursor: pointer;
+  box-shadow: var(--shadow-below-md);
   transition:
     background var(--duration-fast, 120ms) var(--ease-default, ease),
-    border-color var(--duration-fast, 120ms) var(--ease-default, ease);
+    box-shadow var(--duration-fast, 120ms) var(--ease-default, ease);
 
   &:hover {
-    background: var(--color-bg-tertiary);
-    border-color: var(--color-border-hover);
+    background: var(--color-bg-secondary);
+    box-shadow: var(--shadow-below-high);
   }
 
   &:hover [data-role='featured-icon'] > * {
@@ -653,15 +664,28 @@ const FeaturedCard = styled.div`
   }
 `;
 
+const FeaturedTopRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+`;
+
 const FeaturedIcon = styled.div`
-  width: 64px;
-  height: 64px;
-  border-radius: var(--radius-lg, 16px);
-  background: var(--color-bg-primary);
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-lg, 14px);
+  background: var(--color-bg-secondary);
   border: 1px solid var(--color-border-opaque);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+
+  & svg {
+    width: 32px;
+    height: 32px;
+  }
 
   /* Inner shape scales up on card hover for a subtle response. */
   & > * {
@@ -669,30 +693,64 @@ const FeaturedIcon = styled.div`
   }
 `;
 
+const FeaturedSavedPill = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--color-bg-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-content-primary);
+`;
+
 const FeaturedBody = styled.div`
   display: flex;
   flex-direction: column;
   gap: var(--space-2, 8px);
   min-width: 0;
+  flex: 1;
+`;
+
+const FeaturedAuthor = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1, 4px);
+  font-family: var(--font-sans);
+  font-size: var(--text-base, 1rem);
+  line-height: var(--line-height-relaxed, 1.5);
+
+  & strong {
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--color-content-secondary);
+  }
+
+  & span {
+    color: var(--color-content-tertiary);
+  }
 `;
 
 const FeaturedName = styled.h3`
   margin: 0;
   font-family: var(--font-sans);
-  font-size: var(--text-base, 1rem);
+  font-size: var(--text-lg, 1.125rem);
   line-height: var(--line-height-snug, 1.2);
-  font-weight: var(--font-weight-semibold, 600);
+  font-weight: var(--font-weight-medium, 500);
   color: var(--color-content-primary);
 `;
 
 const FeaturedDesc = styled.p`
   margin: 0;
   font-family: var(--font-sans);
-  font-size: var(--text-sm, 0.875rem);
-  line-height: var(--line-height-relaxed, 1.45);
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-relaxed);
+  letter-spacing: var(--tracking-normal);
   color: var(--color-content-secondary);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 `;
@@ -2455,18 +2513,37 @@ export function MarketplacePage({
           <FeaturedGrid>
             {featured.map(app => (
               <FeaturedCard key={app.name} onClick={() => setSelectedApp(app)} role="button" tabIndex={0}>
-                <FeaturedIcon data-role="featured-icon">
-                  <ShapeWrap>{app.shape}</ShapeWrap>
-                </FeaturedIcon>
+                <FeaturedTopRow>
+                  <FeaturedIcon data-role="featured-icon">
+                    <ShapeWrap>{app.shape}</ShapeWrap>
+                  </FeaturedIcon>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={installedAppIds.includes(app.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!installedAppIds.includes(app.id)) onInstallApp?.(app.id);
+                    }}
+                  >
+                    {installedAppIds.includes(app.id) ? 'Installed' : 'Install'}
+                  </Button>
+                </FeaturedTopRow>
                 <FeaturedBody>
+                  <FeaturedAuthor>
+                    <strong>{app.category}</strong>
+                  </FeaturedAuthor>
                   <FeaturedName>{app.name}</FeaturedName>
                   <FeaturedDesc>{app.description}</FeaturedDesc>
                   <FeaturedMeta>
-                    <Tag size="sm" variant="subtle" color="neutral">{app.category}</Tag>
                     {app.targetUsers.map(user => (
                       <Tag key={user} size="sm" variant="outline" color="neutral">{user}</Tag>
                     ))}
                   </FeaturedMeta>
+                  <FeaturedFooter>
+                    <Download01Icon size={14} />
+                    {app.installs} installs
+                  </FeaturedFooter>
                 </FeaturedBody>
               </FeaturedCard>
             ))}
@@ -2483,18 +2560,37 @@ export function MarketplacePage({
           <FeaturedGrid>
             {teamApps.map(app => (
               <FeaturedCard key={app.id} onClick={() => setSelectedApp(app)} role="button" tabIndex={0}>
-                <FeaturedIcon data-role="featured-icon">
-                  <ShapeWrap>{app.shape}</ShapeWrap>
-                </FeaturedIcon>
+                <FeaturedTopRow>
+                  <FeaturedIcon data-role="featured-icon">
+                    <ShapeWrap>{app.shape}</ShapeWrap>
+                  </FeaturedIcon>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={installedAppIds.includes(app.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!installedAppIds.includes(app.id)) onInstallApp?.(app.id);
+                    }}
+                  >
+                    {installedAppIds.includes(app.id) ? 'Installed' : 'Install'}
+                  </Button>
+                </FeaturedTopRow>
                 <FeaturedBody>
+                  <FeaturedAuthor>
+                    <strong>{app.category}</strong>
+                  </FeaturedAuthor>
                   <FeaturedName>{app.name}</FeaturedName>
                   <FeaturedDesc>{app.description}</FeaturedDesc>
                   <FeaturedMeta>
-                    <Tag size="sm" variant="subtle" color="neutral">{app.category}</Tag>
                     {app.targetUsers.map(user => (
                       <Tag key={user} size="sm" variant="outline" color="neutral">{user}</Tag>
                     ))}
                   </FeaturedMeta>
+                  <FeaturedFooter>
+                    <Download01Icon size={14} />
+                    {app.installs} installs
+                  </FeaturedFooter>
                 </FeaturedBody>
               </FeaturedCard>
             ))}
@@ -2510,14 +2606,29 @@ export function MarketplacePage({
         <FeaturedGrid>
           {BACKGROUND_MARKETPLACE_APPS.map(app => (
             <FeaturedCard key={app.id} onClick={() => setSelectedApp(app)} role="button" tabIndex={0}>
-              <FeaturedIcon data-role="featured-icon">
-                <ShapeWrap>{app.shape}</ShapeWrap>
-              </FeaturedIcon>
+              <FeaturedTopRow>
+                <FeaturedIcon data-role="featured-icon">
+                  <ShapeWrap>{app.shape}</ShapeWrap>
+                </FeaturedIcon>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={installedAppIds.includes(app.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!installedAppIds.includes(app.id)) onInstallApp?.(app.id);
+                  }}
+                >
+                  {installedAppIds.includes(app.id) ? 'Installed' : 'Install'}
+                </Button>
+              </FeaturedTopRow>
               <FeaturedBody>
+                <FeaturedAuthor>
+                  <strong>{app.category}</strong>
+                </FeaturedAuthor>
                 <FeaturedName>{app.name}</FeaturedName>
                 <FeaturedDesc>{app.description}</FeaturedDesc>
                 <FeaturedMeta>
-                  <Tag size="sm" variant="subtle" color="neutral">{app.category}</Tag>
                   {app.targetUsers.map(user => (
                     <Tag key={user} size="sm" variant="outline" color="neutral">{user}</Tag>
                   ))}

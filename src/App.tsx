@@ -49,7 +49,7 @@ const PRIMARY_ITEMS: Omit<PrimaryNavItem, 'isActive' | 'onClick'>[] = [
 ];
 
 const TOOL_ITEMS: Omit<PrimaryNavItem, 'isActive' | 'onClick'>[] = [
-  { id: 'apps', label: 'App', icon: <MarketplaceIcon /> },
+  { id: 'apps', label: 'Apps', icon: <MarketplaceIcon /> },
 ];
 
 const BOTTOM_ITEMS: Omit<PrimaryNavItem, 'isActive' | 'onClick'>[] = [
