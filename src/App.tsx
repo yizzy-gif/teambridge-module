@@ -18,6 +18,7 @@ import {
   SegmentedControl, DropdownMenu, Button, DotsHorizontalIcon,
   AILoader, Tag, ZapIcon,
   Pin01Icon,
+  useToast,
 } from 'alloy-design-system';
 import { AIHomePanel } from './components/AIHomePanel/AIHomePanel';
 import { HeadingText } from './components/TopNav/TopNav.styles';
@@ -30,6 +31,7 @@ import {
   AutomationPage, PayrollPage, ESignPage,
   getMarketplaceAppIcon,
   MP_NAV_ID_TO_COMMUNITY,
+  getAppNameById,
 } from './pages';
 import { AISpecialistsListPage } from './pages/AIHome/AISpecialists';
 import { AISpecialistPersonaDetail } from './pages/AIHome/AISpecialists/PersonaDetail';
@@ -550,13 +552,24 @@ export default function App() {
   // Timestamp (ms epoch) of the last interaction (install or open) per app id.
   // Drives the "Just now / X minutes ago" label on the My Apps list.
   const [lastOpenedAtById, setLastOpenedAtById] = useState<Record<string, number>>({});
+  const { toast } = useToast();
   const handleInstallApp = (id: string) => {
+    const alreadyInstalled = installedAppIds.includes(id);
     setInstalledAppIds(prev => (prev.includes(id) ? prev : [...prev, id]));
     setLastOpenedAtById(prev => ({ ...prev, [id]: Date.now() }));
+    if (!alreadyInstalled) {
+      const name = getAppNameById(id);
+      toast.success(name ? `${name} added to My Apps` : 'App added to My Apps');
+    }
   };
   const handleUninstallApp = (id: string) => {
+    const wasInstalled = installedAppIds.includes(id);
     setInstalledAppIds(prev => prev.filter(p => p !== id));
     setLastOpenedAtById(prev => { const { [id]: _, ...rest } = prev; return rest; });
+    if (wasInstalled) {
+      const name = getAppNameById(id);
+      toast.info(name ? `${name} removed from My Apps` : 'App removed from My Apps');
+    }
   };
   const handleAppOpened = (id: string) => {
     setLastOpenedAtById(prev => ({ ...prev, [id]: Date.now() }));
@@ -663,7 +676,14 @@ export default function App() {
   };
 
   const handleTogglePin = (id: string) => {
+    const willPin = !pinnedAppIds.includes(id);
     setPinnedAppIds(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
+    const label = lookupMarketplaceItem(id)?.label;
+    if (willPin) {
+      toast.success(label ? `${label} pinned to sidebar` : 'App pinned to sidebar');
+    } else {
+      toast.info(label ? `${label} unpinned from sidebar` : 'App unpinned from sidebar');
+    }
   };
 
   const handlePinnedClick = (id: string) => {

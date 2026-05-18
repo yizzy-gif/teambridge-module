@@ -136,7 +136,7 @@ export function TopNav({
         )}
 
         {showPonderButton && (
-          <AICoreButton onClick={onPonderClick} aria-label="Ponder AI" />
+          <AICoreButton dark onClick={onPonderClick} aria-label="Ponder AI" />
         )}
       </TopNavActions>
     </TopNavRoot>

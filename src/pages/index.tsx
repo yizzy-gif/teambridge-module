@@ -3322,6 +3322,10 @@ const COMMUNITY_TO_MP_NAV_ID: Record<string, string> = {
 export const MP_NAV_ID_TO_COMMUNITY: Record<string, string> = Object.fromEntries(
   Object.entries(COMMUNITY_TO_MP_NAV_ID).map(([k, v]) => [v, k]),
 );
+
+export function getAppNameById(id: string): string | undefined {
+  return [...COMMUNITY_APPS, ...BACKGROUND_MARKETPLACE_APPS].find(a => a.id === id)?.name;
+}
 const INSTALLED_APP_IDS = new Set([
   'shift_marketplace',
   'smart_time_clock',
