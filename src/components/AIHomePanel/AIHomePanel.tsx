@@ -158,16 +158,16 @@ export function AIHomePanel() {
                   time={entry.timestamp}
                 >
                   <Button variant="ghost" size="xs" iconOnly aria-label="Copy">
-                    <Copy01Icon size={14} />
+                    <Copy01Icon size={12} />
                   </Button>
                   <Button variant="ghost" size="xs" iconOnly aria-label="Good response">
-                    <ThumbsUpIcon size={14} />
+                    <ThumbsUpIcon size={12} />
                   </Button>
                   <Button variant="ghost" size="xs" iconOnly aria-label="Bad response">
-                    <ThumbsDownIcon size={14} />
+                    <ThumbsDownIcon size={12} />
                   </Button>
                   <Button variant="ghost" size="xs" iconOnly aria-label="Regenerate">
-                    <RefreshCw04Icon size={14} />
+                    <RefreshCw04Icon size={12} />
                   </Button>
                 </AIMessageActions>
               </Fragment>

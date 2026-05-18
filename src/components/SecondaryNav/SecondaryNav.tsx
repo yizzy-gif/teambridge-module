@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ListItem, ChevronDownIcon, SearchField, Button } from 'alloy-design-system';
+import { ListItem, ChevronDownIcon, SearchField } from 'alloy-design-system';
 import type {
   SecondaryNavMenuEntry,
   SecondaryNavMenuItem,
@@ -9,7 +9,7 @@ import type {
 import {
   SecondaryNavRoot,
   NavTop, HeadingRow, NavHeading,
-  HeaderActions, SearchRow, FilterBtn,
+  SearchRow, FilterBtn,
   NavMiddle,
   GroupRow, GroupIconSlot, GroupLabel, GroupChevron, GroupChildren, MenuGroupWrapper,
   MenuSectionLabel,
@@ -135,13 +135,10 @@ export interface SecondaryNavProps {
   /** Search value (controlled) */
   searchValue?: string;
   onSearchChange?: (value: string) => void;
-  onHeaderAction1?: () => void;
-  onHeaderAction2?: () => void;
   onFilterClick?: () => void;
   /**
-   * Optional content rendered to the right of the heading, replacing the
-   * default 2 asterisk action buttons. Used by AI Home to slot in a view
-   * toggle plus a kebab menu containing the original actions.
+   * Optional content rendered to the right of the heading. Used by AI Home
+   * to slot in a view toggle plus a kebab menu.
    */
   headerSlot?: React.ReactNode;
   /**
@@ -173,8 +170,6 @@ export function SecondaryNav({
   showSearch = true,
   searchValue = '',
   onSearchChange,
-  onHeaderAction1,
-  onHeaderAction2,
   onFilterClick,
   headerSlot,
   bodyContent,
@@ -227,20 +222,11 @@ export function SecondaryNav({
       aria-label="Secondary navigation"
     >
 
-      {/* Part 1: Top — heading + trailing buttons + search/filter */}
+      {/* Part 1: Top — heading + optional trailing slot + search/filter */}
       <NavTop>
         <HeadingRow>
           <NavHeading>{heading}</NavHeading>
-          {headerSlot ?? (
-            <HeaderActions>
-              <Button variant="ghost" size="sm" iconOnly onClick={onHeaderAction1} aria-label="Action">
-                <AsteriskIcon />
-              </Button>
-              <Button variant="ghost" size="sm" iconOnly onClick={onHeaderAction2} aria-label="Action">
-                <AsteriskIcon />
-              </Button>
-            </HeaderActions>
-          )}
+          {headerSlot}
         </HeadingRow>
 
         {showSearch && !hasCustomBody && (

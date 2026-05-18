@@ -33,8 +33,6 @@ export function DesktopShell({
   showSearch,
   searchValue,
   onSearchChange,
-  onHeaderAction1,
-  onHeaderAction2,
   onFilterClick,
   headerSlot,
   bodyContent,
@@ -93,8 +91,6 @@ export function DesktopShell({
             showSearch={showSearch}
             searchValue={searchValue}
             onSearchChange={onSearchChange}
-            onHeaderAction1={onHeaderAction1}
-            onHeaderAction2={onHeaderAction2}
             onFilterClick={onFilterClick}
             headerSlot={headerSlot}
             bodyContent={bodyContent}

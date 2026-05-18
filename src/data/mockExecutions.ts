@@ -31,7 +31,17 @@ export type Conversation = ConversationRecord;
 
 export interface Workflow { id: string; name: string; href: string; }
 export interface TriggerSource { id: string; label: string; type: string; }
-export interface ExecutionStep { offsetMs: number; description: string; toolCategory: ToolCategory; channel?: CommunicationChannel; }
+export interface ExecutionStep {
+  offsetMs: number;
+  /** Free-form description — used as the Outcome column for engage-less rows. */
+  description: string;
+  toolCategory: ToolCategory;
+  channel?: CommunicationChannel;
+  /** Short, polished label for the tool/action invoked (e.g. "Scan records").
+   *  Surfaced in the engage-less Tool/Outcome table. When omitted, the table
+   *  derives one from `description` via {@link deriveToolName}. */
+  tool?: string;
+}
 
 export interface EngagelessExecution {
   id: string;
@@ -2275,6 +2285,204 @@ export function countGoalsTotal(records: ExecutionRecord[]): number {
     }
   }
   return total;
+}
+
+// ── Engage-less step normalization ────────────────────────────────────────────
+// The engage-less expanded view renders a Tool / Outcome table (matching the
+// engage Conversations table). Each step needs a short polished label for the
+// Tool column. Rather than hand-author one per step across ~150 steps, derive
+// it from the existing description verb. Hand-authored `tool` values on a
+// step override the derived label.
+
+const COMMUNICATION_TOOL_BY_CHANNEL: Record<NonNullable<CommunicationChannel>, string> = {
+  chat: 'Post to channel',
+  email: 'Send email',
+  sms: 'Send SMS',
+};
+
+const COMMUNICATION_TOOL_BY_VERB: Record<string, string> = {
+  posted: 'Post to channel',
+  post: 'Post to channel',
+  shared: 'Post to channel',
+  share: 'Post to channel',
+  notified: 'Send notification',
+  notify: 'Send notification',
+  emailed: 'Send email',
+  email: 'Send email',
+  sent: 'Send message',
+  send: 'Send message',
+  routed: 'Route notification',
+  pinged: 'Send notification',
+  messaged: 'Send message',
+  delivered: 'Deliver message',
+  distributed: 'Distribute report',
+  forwarded: 'Forward message',
+  broadcast: 'Broadcast message',
+};
+
+const DATA_CLEANUP_TOOL_BY_VERB: Record<string, string> = {
+  scanned: 'Scan records',
+  scan: 'Scan records',
+  compared: 'Compare records',
+  compare: 'Compare records',
+  checked: 'Check records',
+  'cross-checked': 'Cross-check records',
+  'spot-checked': 'Spot-check records',
+  reviewed: 'Review records',
+  review: 'Review records',
+  found: 'Detect anomalies',
+  detected: 'Detect anomalies',
+  detect: 'Detect anomalies',
+  identified: 'Identify candidates',
+  identify: 'Identify candidates',
+  flagged: 'Flag for review',
+  flag: 'Flag for review',
+  queued: 'Queue for review',
+  'auto-corrected': 'Auto-correct fields',
+  corrected: 'Auto-correct fields',
+  'auto-resolved': 'Auto-resolve',
+  resolved: 'Auto-resolve',
+  'auto-merged': 'Auto-merge duplicates',
+  merged: 'Merge records',
+  matched: 'Reconcile records',
+  reconciled: 'Reconcile records',
+  validated: 'Validate document',
+  validate: 'Validate document',
+  verified: 'Verify records',
+  verification: 'Verify records',
+  verify: 'Verify records',
+  generated: 'Generate report',
+  generate: 'Generate report',
+  updated: 'Update record',
+  received: 'Receive request',
+  saved: 'Save record',
+  archived: 'Archive record',
+  applied: 'Apply rules',
+  apply: 'Apply rules',
+  recalculated: 'Recalculate values',
+  attempted: 'Reconcile records',
+  analyzed: 'Analyze data',
+  analyze: 'Analyze data',
+  aggregated: 'Aggregate data',
+  aggregate: 'Aggregate data',
+  computed: 'Compute metrics',
+  compute: 'Compute metrics',
+  collected: 'Collect data',
+  collect: 'Collect data',
+  pulled: 'Pull data',
+  pull: 'Pull data',
+  processed: 'Process records',
+  process: 'Process records',
+  deduped: 'Dedupe records',
+  dedupe: 'Dedupe records',
+  normalized: 'Normalize fields',
+  normalize: 'Normalize fields',
+  logged: 'Log audit trail',
+  log: 'Log audit trail',
+  redacted: 'Redact PII',
+  redact: 'Redact PII',
+  audit: 'Audit records',
+  audited: 'Audit records',
+  reconciliation: 'Reconcile records',
+  're-ran': 'Re-run job',
+  rerun: 'Re-run job',
+  halted: 'Halt run',
+  waiting: 'Await dependency',
+  await: 'Await dependency',
+};
+
+const SCHEDULING_TOOL_BY_VERB: Record<string, string> = {
+  triggered: 'Trigger run',
+  trigger: 'Trigger run',
+  started: 'Initiate run',
+  start: 'Initiate run',
+  initiated: 'Initiate run',
+  initiate: 'Initiate run',
+  fired: 'Trigger run',
+  scheduled: 'Schedule job',
+  schedule: 'Schedule job',
+  dispatched: 'Dispatch job',
+  enqueued: 'Enqueue job',
+  ponder: 'Trigger run',
+  flagged: 'Trigger run',
+};
+
+const STOP_WORDS = new Set(['a', 'an', 'the', 'all', 'and', 'or', 'of', 'to', 'for', 'with', 'in', 'on', 'at', 'by']);
+
+/**
+ * Derive a short, presentable tool label from an execution step. The label is
+ * shown in the "Tool" column of the engage-less expanded view. Used as a
+ * fallback when a step doesn't carry a hand-authored `tool` value.
+ *
+ * Walks every word in `description` against the category's verb map. This
+ * tolerates descriptions that lead with a noun, numeral, or scope adjective
+ * ("Weekly HR data audit initiated", "3 employees missing NDAs", "Ops report
+ * generation started") — they still resolve to a sensible action verb.
+ */
+export function deriveToolName(step: ExecutionStep): string {
+  const dict =
+    step.toolCategory === 'communication' ? COMMUNICATION_TOOL_BY_VERB
+    : step.toolCategory === 'data_cleanup' ? DATA_CLEANUP_TOOL_BY_VERB
+    : SCHEDULING_TOOL_BY_VERB;
+  const tokens = step.description
+    .toLowerCase()
+    .replace(/[#,.]/g, ' ')
+    .split(/\s+/)
+    .filter(t => t && !STOP_WORDS.has(t) && !/^\d+%?$/.test(t));
+  for (const t of tokens) {
+    if (dict[t]) return dict[t];
+  }
+  if (step.toolCategory === 'communication') {
+    return step.channel ? COMMUNICATION_TOOL_BY_CHANNEL[step.channel] : 'Send notification';
+  }
+  if (step.toolCategory === 'scheduling') return 'Schedule job';
+  return 'Inspect data';
+}
+
+// Apply derivation in place so every engage-less step gets a `tool` value at
+// module load. Hand-authored values pass through unchanged.
+for (const record of MOCK_EXECUTIONS) {
+  if (record.deploymentType !== 'engage_less') continue;
+  for (const step of record.steps) {
+    if (step.tool == null) step.tool = deriveToolName(step);
+  }
+}
+
+// ── Engage-less primary tool (one per execution) ──────────────────────────────
+// The engage-less expanded view renders a single Tool / Outcome row per
+// activity. The tool label maps to the workflow's purpose (Document Collection
+// → "Validate document", Weekly Data Audit → "Run data audit", etc.). Falls
+// back to the first step's derived tool if a workflow isn't in the map.
+
+const WORKFLOW_TOOL_BY_ID: Record<string, string> = {
+  'wf-005': 'Run onboarding checklist',
+  'wf-006': 'Validate document',
+  'wf-007': 'Triage ticket',
+  'wf-008': 'Run data audit',
+  'wf-009': 'Run dedupe job',
+  'wf-010': 'Generate ops report',
+};
+
+/**
+ * Surface a single, polished tool label for an engage-less execution. The
+ * label appears as the only row in the expanded view's Tool/Outcome table,
+ * so it should read as the overall capability invoked (not a per-step verb).
+ */
+export function derivePrimaryTool(record: EngagelessExecution): string {
+  const mapped = WORKFLOW_TOOL_BY_ID[record.workflow.id];
+  if (mapped) return mapped;
+  // Last-resort fallback — first step's tool.
+  return record.steps[0]?.tool ?? deriveToolName(record.steps[0] ?? { offsetMs: 0, description: '', toolCategory: 'data_cleanup' });
+}
+
+/**
+ * Map an engage-less run status to the public-facing outcome label used in the
+ * Outcome status tag.
+ */
+export function primaryOutcomeLabel(status: EngagelessRunStatus): string {
+  if (status === 'success') return 'Succeeded';
+  if (status === 'in_progress') return 'In Progress';
+  return 'Failed';
 }
 
 // ── Stat computation ──────────────────────────────────────────────────────────

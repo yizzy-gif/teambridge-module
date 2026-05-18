@@ -54,14 +54,6 @@ export const NavHeading = styled.h2`
   white-space: nowrap;
 `;
 
-export const HeaderActions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-`;
-
-
 export const SearchRow = styled.div`
   display: flex;
   gap: 6px;

@@ -27,6 +27,8 @@ import {
   CREDIT_COST_RATE,
   getWindow,
   filterByWindow,
+  derivePrimaryTool,
+  primaryOutcomeLabel,
 } from '../../data/mockExecutions';
 import { mockPersonas } from '../../data/mockPersonas';
 import { PersonaAvatar } from './PersonaAvatar';
@@ -447,6 +449,71 @@ const ThreadTimeline = styled(Timeline)`
   padding-left: 56px;
 `;
 
+// Engage-less Tool / Outcome table — mirrors the engage Conversations table
+// (TransparentTableWrap + Table size="sm" + two columns + expandable rows).
+// One row per activity: Tool column shows a single polished tool label;
+// Outcome column shows a status tag (Succeeded / In Progress / Failed).
+// Clicking the row reveals the brief description (outcomeSummaryFull).
+function ToolCallsTable({ record }: { record: EngagelessExecution }) {
+  const [expanded, setExpanded] = useState(false);
+  const tool = derivePrimaryTool(record);
+  const outcome = primaryOutcomeLabel(record.status);
+  const status =
+    record.status === 'success' ? 'success'
+    : record.status === 'in_progress' ? 'info'
+    : 'error';
+
+  return (
+    <TransparentTableWrap>
+      <Table size="sm">
+        <TableHeader>
+          <TableRow hoverable={false}>
+            <TableHead>Tool</TableHead>
+            <TableHead>Outcome</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                onClick={() => setExpanded(v => !v)}
+                role="button"
+                aria-expanded={expanded}
+              >
+                <ExpandToggle as="span" style={{ cursor: 'inherit' }}>
+                  {expanded ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
+                </ExpandToggle>
+                <CellText>{tool}</CellText>
+              </div>
+            </TableCell>
+            <TableCell>
+              <StatusTag size="sm" status={status as any}>{outcome}</StatusTag>
+            </TableCell>
+          </TableRow>
+          {expanded && (
+            <tr>
+              <td colSpan={2} style={{ padding: '8px 16px 16px' }}>
+                <ToolCallDetail>{record.outcomeSummaryFull}</ToolCallDetail>
+              </td>
+            </tr>
+          )}
+        </TableBody>
+      </Table>
+    </TransparentTableWrap>
+  );
+}
+
+// Indent the per-tool brief so its left edge aligns with the tool label
+// (past the chevron + gutter of the enclosing row), matching the engage
+// ThreadViewer's indentation pattern.
+const ToolCallDetail = styled.div`
+  padding-left: 28px;
+  font-size: var(--text-sm, 0.875rem);
+  line-height: 1.5;
+  color: var(--color-content-secondary, #475569);
+`;
+
 function ThreadViewer({ thread }: { thread: ConversationMessage[] }) {
   return (
     <ThreadTimeline aria-label="Conversation turns">
@@ -652,8 +719,8 @@ function EngagelessExpandedDetail({ record, totalCols }: { record: EngagelessExe
 
   const spanDetailsSection = (
     <Section>
-      <Eyebrow>Span details</Eyebrow>
-      <StepTimeline steps={record.steps} />
+      <Eyebrow>Tool calls</Eyebrow>
+      <ToolCallsTable record={record} />
     </Section>
   );
 
