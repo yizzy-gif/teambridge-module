@@ -652,15 +652,27 @@ const FeaturedCard = styled.div`
   box-shadow: var(--shadow-below-md);
   transition:
     background var(--duration-fast, 120ms) var(--ease-default, ease),
-    box-shadow var(--duration-fast, 120ms) var(--ease-default, ease);
+    box-shadow var(--duration-slow, 250ms) var(--ease-out, cubic-bezier(0, 0, 0.2, 1)),
+    transform var(--duration-slow, 250ms) var(--ease-out, cubic-bezier(0, 0, 0.2, 1));
 
   &:hover {
     background: var(--color-bg-secondary);
     box-shadow: var(--shadow-below-high);
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: translateY(0);
+    transition-duration: var(--duration-fast, 120ms);
   }
 
   &:hover [data-role='featured-icon'] > * {
     transform: scale(1.12);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: background var(--duration-fast, 120ms) var(--ease-default, ease);
+    &:hover, &:active { transform: none; }
   }
 `;
 

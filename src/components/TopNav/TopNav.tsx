@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button, AICoreButton } from 'alloy-design-system';
 import type { TopNavAction } from '../../types/nav';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import {
   TopNavRoot,
   TopNavHeading,
@@ -75,6 +76,7 @@ export function TopNav({
 }: TopNavProps) {
   const secondaryActions = actions.filter(a => a.variant === 'secondary');
   const primaryActions = actions.filter(a => a.variant === 'primary');
+  const prefersDark = useMediaQuery('(prefers-color-scheme: dark)');
 
   return (
     <TopNavRoot $noBorder={noBorder}>
@@ -136,7 +138,7 @@ export function TopNav({
         )}
 
         {showPonderButton && (
-          <AICoreButton dark onClick={onPonderClick} aria-label="Ponder AI" />
+          <AICoreButton dark={prefersDark} onClick={onPonderClick} aria-label="Ponder AI" />
         )}
       </TopNavActions>
     </TopNavRoot>
