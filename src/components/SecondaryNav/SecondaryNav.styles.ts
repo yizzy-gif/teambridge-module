@@ -198,7 +198,9 @@ export const GroupChildren = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-left: 32px;
+  /* Align children flush with the group header / top-level items so the
+     selected-row background lines up with the upper-level menu items. */
+  padding-left: 0;
 `;
 
 /** Wrapper for GroupRow + GroupChildren — keeps internal gap tight */

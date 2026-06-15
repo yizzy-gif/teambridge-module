@@ -15,12 +15,12 @@ import {
   Users03Icon, File04Icon, ClipboardCheckIcon,
   Grid01Icon, GitBranch01Icon, FeatherIcon, LineChartUp01Icon, SettingsGearIcon,
   HomeLineIcon, BarChart02Icon, ListBulletIcon, CheckCircleIcon, Breadcrumb,
-  SegmentedControl, DropdownMenu, Button, DotsHorizontalIcon,
-  AILoader, Tag, ZapIcon,
+  SegmentedControl,
+  AILoader, Tag, Badge, ZapIcon,
   Pin01Icon,
+  AlertTriangleIcon, ActivityIcon,
   useToast,
 } from 'alloy-design-system';
-import { AIHomePanel } from './components/AIHomePanel/AIHomePanel';
 import { HeadingText } from './components/TopNav/TopNav.styles';
 import policyActiveUrl from './assets/policy-icon-active.svg';
 import automationActiveUrl from './assets/automation-icon-active.svg';
@@ -33,6 +33,9 @@ import {
   MP_NAV_ID_TO_COMMUNITY,
   getAppNameById,
 } from './pages';
+import {
+  UltronPage, AccountDatabasePage, useUltronStore, ACCOUNT_COLLECTIONS, ToneDot, toneFor,
+} from './pages/Ultron';
 import { AISpecialistsListPage } from './pages/AIHome/AISpecialists';
 import { AISpecialistPersonaDetail } from './pages/AIHome/AISpecialists/PersonaDetail';
 import { UsagePage } from './pages/Usage';
@@ -98,6 +101,8 @@ interface AppSecConfig {
 const APP_SEC_CONFIG: Record<string, AppSecConfig> = {
   'home': {
     defaultId: 'home-overview',
+    // Home's secondary nav body is overridden (see `homeBody` in App) with the
+    // Ultron / Account-database sidebar; these entries are not rendered.
     entries: [
       { id: 'home-overview', label: 'Overview',  icon: <HomeLineIcon size={16} /> },
       { id: 'home-activity', label: 'Activity',  icon: <ListBulletIcon size={16} /> },
@@ -399,6 +404,14 @@ const APP_LABELS: Record<string, string> = {
 
 // (pageEntries moved inside App component to support active state)
 
+// Group icons for the Ultron secondary-nav groups (Needs attention / Live
+// stream / Resolved), keyed by the store group id.
+const HOME_GROUP_ICON: Record<string, React.ReactNode> = {
+  needs_attention: <AlertTriangleIcon size={16} />,
+  live:            <ActivityIcon size={16} />,
+  resolved:        <CheckCircleIcon size={16} />,
+};
+
 const DEFAULT_TOP_NAV_ACTIONS: TopNavAction[] = [
   { id: 'new',    label: 'New',    variant: 'secondary' },
   { id: 'invite', label: 'Invite', variant: 'primary' },
@@ -574,9 +587,13 @@ export default function App() {
   const handleAppOpened = (id: string) => {
     setLastOpenedAtById(prev => ({ ...prev, [id]: Date.now() }));
   };
-  // AI Home secondary-nav body toggle: 'list' shows the existing menu
-  // items, 'ai' replaces the body with the inline AI chat panel.
-  const [aiHomeView, setAiHomeView] = useState<'list' | 'ai'>('list');
+  // Home secondary-nav body toggle: 'ultron' shows Ultron threads grouped by
+  // lifecycle; 'account' shows the (stubbed) Account database collections.
+  const [homeView, setHomeView] = useState<'ultron' | 'account'>('ultron');
+  const [accountCollection, setAccountCollection] = useState('employees');
+  // Shared Ultron store (threads + grouping + selection) — drives both the
+  // sidebar and the main detail view.
+  const ultron = useUltronStore();
 
   // Per-module memory of the last-visited sub-section (mobile-only
   // behavior — desktop still resets to defaultId when switching apps).
@@ -645,9 +662,7 @@ export default function App() {
             onClick: () => setActivePageId('usage'),
           },
         ]),
-    ...(activeId === 'home' && aiHomeView === 'ai'
-      ? []
-      : [{ id: 'settings', label: 'Settings', icon: <SettingsGearIcon size={16} /> }]),
+    { id: 'settings', label: 'Settings', icon: <SettingsGearIcon size={16} /> },
   ];
 
   const withActive = (items: typeof PRIMARY_ITEMS): PrimaryNavItem[] =>
@@ -724,6 +739,9 @@ export default function App() {
   const secMeta = lookupSecItem(activeId, secActiveId);
   const topNavHeading: React.ReactNode = (() => {
     if (activePageId === 'usage') return <HeadingText>Usage</HeadingText>;
+    if (activeId === 'home') {
+      return <HeadingText>{homeView === 'account' ? 'Account database' : 'Ultron'}</HeadingText>;
+    }
     if (activeId === 'apps' && secActiveId === 'app-marketplace' && !activePageId?.startsWith('app:')) {
       return (
         <Breadcrumb
@@ -789,54 +807,59 @@ export default function App() {
         ? (secMeta.parentLabel ? `${secMeta.parentLabel} / ${secMeta.label}` : secMeta.label)
         : undefined;
 
-  // ── AI Home: secondary-nav header slot + optional body override ──────
-  // Render the toggle only when the AI Home module is active. Layout
-  // budget at 270px is tight: instead of keeping the two original
-  // asterisk action buttons inline (which would overflow alongside the
-  // segmented control), they fold into a kebab DropdownMenu trigger.
-  const aiHomeHeaderSlot = activeId === 'home' ? (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2, 8px)' }}>
-      <DropdownMenu
-        placement="bottom-end"
-        trigger={
-          <Button variant="ghost" size="sm" iconOnly aria-label="More actions">
-            <DotsHorizontalIcon size={16} />
-          </Button>
+  // ── Home: secondary-nav header toggle + body override ───────────────
+  // The toggle switches the Home sidebar between the Ultron thread groups
+  // and the (stubbed) Account database collections. Rendered only for Home.
+  const homeHeaderSlot = activeId === 'home' ? (
+    <SegmentedControl
+      size="sm"
+      value={homeView}
+      onChange={(v: string) => setHomeView(v as 'ultron' | 'account')}
+      aria-label="Home view"
+    >
+      <SegmentedControl.Item
+        value="ultron"
+        leadingIcon={
+          <AILoader variant={homeView === 'ultron' ? 'gradient-fill' : 'inverse'} state="ready" size={14} />
         }
-        groups={[
-          {
-            id: 'actions',
-            options: [
-              { id: 'action-1', label: 'Action' },
-              { id: 'action-2', label: 'Action' },
-            ],
-          },
-        ]}
-      />
-      <SegmentedControl
-        size="sm"
-        value={aiHomeView}
-        onChange={(v: string) => setAiHomeView(v as 'list' | 'ai')}
-        aria-label="AI Home view"
       >
-        <SegmentedControl.Item value="list">List</SegmentedControl.Item>
-        <SegmentedControl.Item
-          value="ai"
-          leadingIcon={
-            <AILoader
-              variant={aiHomeView === 'ai' ? 'gradient-fill' : 'inverse'}
-              state="ready"
-              size={14}
-            />
-          }
-        >
-          AI
-        </SegmentedControl.Item>
-      </SegmentedControl>
-    </div>
+        Ultron
+      </SegmentedControl.Item>
+      <SegmentedControl.Item value="account">Account DB</SegmentedControl.Item>
+    </SegmentedControl>
   ) : undefined;
 
-  const aiHomeBody = activeId === 'home' && aiHomeView === 'ai' ? <AIHomePanel /> : undefined;
+  // Home renders its secondary-nav menu through the standard pipeline (same
+  // MenuGroupItem / MenuSingleItem components as every other app) so the rows
+  // match: collapsible groups, 32px rows, tertiary labels, Tag counts.
+  const homeMenuEntries: SecondaryNavMenuEntry[] = activeId !== 'home'
+    ? []
+    : homeView === 'account'
+      ? ACCOUNT_COLLECTIONS.map(c => ({
+          type: 'single' as const,
+          item: {
+            id: c.id, label: c.label, icon: c.icon,
+            isActive: accountCollection === c.id,
+            onClick: () => setAccountCollection(c.id),
+          },
+        }))
+      : ultron.groups.map(g => ({
+          type: 'group' as const,
+          group: {
+            id: g.id,
+            label: g.label,
+            icon: HOME_GROUP_ICON[g.id],
+            trailingBadge: <Badge>{g.threads.length}</Badge>,
+            defaultExpanded: true,
+            children: g.threads.map(t => ({
+              id: t.id,
+              label: t.name,
+              icon: <ToneDot data-tone={toneFor(t)} aria-hidden="true" />,
+              isActive: ultron.selectedId === t.id,
+              onClick: () => ultron.setSelectedId(t.id),
+            })),
+          },
+        }));
 
   // Module catalog for PrimarySheet + ModuleDrawer. Groups mirror the
   // three-tier layout of the desktop PrimaryNav (main / tools /
@@ -859,17 +882,18 @@ export default function App() {
       aiItemId="ai-home"
       // SecondaryNav
       secNavHeading={APP_LABELS[activeId] ?? activeId}
-      menuEntries={buildMenuEntries(activeId, secActiveId, handleSecNavClick, activePageId !== null, pinnedAppIds, handleTogglePin)}
+      menuEntries={activeId === 'home'
+        ? homeMenuEntries
+        : buildMenuEntries(activeId, secActiveId, handleSecNavClick, activePageId !== null, pinnedAppIds, handleTogglePin)}
       pageEntries={pageEntries}
       showSecondaryNav={activeId !== 'apps'}
-      showSearch
+      showSearch={activeId !== 'home'}
       searchValue={search}
       onSearchChange={setSearch}
-      headerSlot={aiHomeHeaderSlot}
-      bodyContent={aiHomeBody}
+      headerSlot={homeHeaderSlot}
       // TopNav — only shows current secondary selection (app shown in SecNav)
       heading={topNavHeading}
-      actions={activeId === 'ai-home' || activeId === 'apps' || activePageId === 'usage' ? [] : DEFAULT_TOP_NAV_ACTIONS}
+      actions={activeId === 'home' || activeId === 'ai-home' || activeId === 'apps' || activePageId === 'usage' ? [] : DEFAULT_TOP_NAV_ACTIONS}
       showActivityButton
       showPonderButton
       noBorder={
@@ -892,6 +916,17 @@ export default function App() {
     >
       {activePageId === 'usage' ? (
         <UsagePage />
+      ) : activeId === 'home' ? (
+        homeView === 'account' ? (
+          <AccountDatabasePage collectionId={accountCollection} />
+        ) : (
+          <UltronPage
+            thread={ultron.selectedThread}
+            onAction={ultron.commit}
+            onRefinement={ultron.refine}
+            onSaveWorkflow={ultron.saveWorkflow}
+          />
+        )
       ) : (
         <PageContent
           activeId={activeId}
