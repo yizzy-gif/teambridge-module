@@ -139,7 +139,7 @@ export const hasMultipleCtas = (prompt: string): boolean =>
   /,|\sand\s/.test(prompt);
 
 /** Combined primary label shown when a prompt bundles several actions. */
-export const DO_IT_ALL_LABEL = 'Yes, do it all';
+export const DO_IT_ALL_LABEL = 'Approve all';
 
 // ── Stream filter (lifecycle SegmentedControl) ───────────────────────────────
 

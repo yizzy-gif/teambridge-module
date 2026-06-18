@@ -14,8 +14,8 @@ import {
 import {
   Users03Icon, File04Icon, ClipboardCheckIcon,
   Grid01Icon, GitBranch01Icon, FeatherIcon, LineChartUp01Icon, SettingsGearIcon,
-  HomeLineIcon, BarChart02Icon, ListBulletIcon, CheckCircleIcon, Breadcrumb,
-  SegmentedControl,
+  HomeLineIcon, BarChart02Icon, ListBulletIcon, CheckCircleIcon, FolderIcon, Breadcrumb,
+  Button,
   Tag, Badge, ZapIcon,
   Pin01Icon,
   AlertTriangleIcon, Save01Icon,
@@ -34,7 +34,7 @@ import {
   getAppNameById,
 } from './pages';
 import {
-  UltronPage, MemoryPage, AccountDatabasePage, useUltronStore, ACCOUNT_COLLECTIONS, ToneDot, toneFor, AgentMark,
+  UltronPage, MemoryPage, AccountDatabasePage, useUltronStore, ACCOUNT_COLLECTIONS, AgentMark,
   type UltronSection,
 } from './pages/Ultron';
 import { AISpecialistsListPage } from './pages/AIHome/AISpecialists';
@@ -409,7 +409,7 @@ const APP_LABELS: Record<string, string> = {
 // stream / Resolved), keyed by the store group id.
 const HOME_GROUP_ICON: Record<string, React.ReactNode> = {
   needs_attention: <AlertTriangleIcon size={16} />,
-  live:            <AgentMark mark="lines" size={24} tone="light" state="active" />,
+  live:            <AgentMark mark="lines" size={32} tone="light" state="active" coreHalo={false} />,
   resolved:        <CheckCircleIcon size={16} />,
 };
 
@@ -820,25 +820,31 @@ export default function App() {
         : undefined;
 
   // ── Home: secondary-nav header toggle + body override ───────────────
-  // The toggle switches the Home sidebar between the Ultron thread groups
-  // and the (stubbed) Account database collections. Rendered only for Home.
+  // A single button toggles the Home sidebar between the Ultron thread groups
+  // and the (stubbed) Account database — it's labelled with the view it switches
+  // TO (on Ultron → "Account DB", otherwise → "Ultron"). Rendered only for Home.
   const homeHeaderSlot = activeId === 'home' ? (
-    <SegmentedControl
-      size="sm"
-      value={homeView}
-      onChange={(v: string) => setHomeView(v as 'ultron' | 'account')}
-      aria-label="Home view"
-    >
-      <SegmentedControl.Item
-        value="ultron"
-        leadingIcon={
+    homeView === 'ultron' ? (
+      <Button
+        size="sm"
+        variant="tertiary"
+        leadingArtwork={<FolderIcon size={16} />}
+        onClick={() => setHomeView('account')}
+      >
+        Account DB
+      </Button>
+    ) : (
+      <Button
+        size="sm"
+        variant="tertiary"
+        leadingArtwork={
           <AgentMark mark="circle" size={16} tone="light" state="idle" aria-label="Ultron" />
         }
+        onClick={() => setHomeView('ultron')}
       >
         Ultron
-      </SegmentedControl.Item>
-      <SegmentedControl.Item value="account">Account DB</SegmentedControl.Item>
-    </SegmentedControl>
+      </Button>
+    )
   ) : undefined;
 
   // Home renders its secondary-nav menu through the standard pipeline (same
@@ -864,7 +870,7 @@ export default function App() {
               item: {
                 id: 'live-feed',
                 label: 'Live',
-                icon: <AgentMark mark="circle" size={24} tone="light" state="active" />,
+                icon: <AgentMark mark="circle" size={32} tone="light" state="active" coreHalo={false} />,
                 isActive: homeView === 'ultron' && homeSection === 'live',
                 onClick: () => { setHomeView('ultron'); setHomeSection('live'); if (g.threads[0]) ultron.setSelectedId(g.threads[0].id); },
               },
@@ -886,10 +892,11 @@ export default function App() {
                 id: t.id,
                 label: t.name,
                 // Working cases carry Ultron's identity mark (orbiting while it
-                // processes, idling while it monitors); Done cases get a tone dot.
+                // processes, idling while it monitors); Done cases carry the
+                // Pulse mark — the breathing core, signalling a settled case.
                 icon: childSection === 'working'
-                  ? <AgentMark mark="orbit" size={24} tone="light" state={t.status === 'in_progress' ? 'active' : 'idle'} aria-label="Working" />
-                  : <ToneDot data-tone={toneFor(t)} aria-hidden="true" />,
+                  ? <AgentMark mark="orbit" size={32} tone="light" state={t.status === 'in_progress' ? 'active' : 'idle'} aria-label="Working" coreHalo={false} />
+                  : <AgentMark mark="pulse" size={32} tone="light" state={t.status === 'unresolved' ? 'idle' : 'static'} color={t.status === 'unresolved' ? 'var(--color-orange-content-tertiary)' : 'var(--color-content-disabled)'} aria-label="Done" />,
                 isActive: homeView === 'ultron' && homeSection === childSection && ultron.selectedId === t.id,
                 onClick: () => { setHomeView('ultron'); setHomeSection(childSection); ultron.setSelectedId(t.id); },
               })),
@@ -970,7 +977,9 @@ export default function App() {
             threads={ultron.threads}
             stageById={ultron.stageById}
             section={homeSection}
+            doppelgangerIds={ultron.doppelgangerIds}
             selectedId={ultron.selectedId}
+            onSelectThread={ultron.setSelectedId}
             onAction={ultron.commit}
             onRefinement={ultron.refine}
             onSaveWorkflow={ultron.saveWorkflow}

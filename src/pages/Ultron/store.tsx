@@ -77,6 +77,11 @@ export interface UltronStore {
   /** Decision stage per thread id (0 = first CTA, 1 = follow-up CTA). Drives the
    *  feed, where every card tracks its own stage independently. */
   stageById: Record<string, number>;
+  /** Thread ids the user has acted on from the Live feed, in action order. Each
+   *  leaves a "doppelganger" card that lingers in Live — mirroring the case's
+   *  state as the real card travels Working → Done — and sinks to the feed bottom
+   *  once it reaches a Done state. */
+  doppelgangerIds: string[];
   setSelectedId: (id: string) => void;
   commit: (threadId: string, label: string) => void;
   refine: (label: string) => void;
@@ -95,19 +100,29 @@ export function useUltronStore(): UltronStore {
     return first?.id ?? ultronThreads[0]?.id ?? null;
   });
 
+  // Doppelganger cards: ids acted on from the Live feed, in action order. Also
+  // keeps in-flight cases pinned to the Working group while they await a
+  // follow-up, so they never drop out of the Working path mid-flow.
+  const [doppelgangerIds, setDoppelgangerIds] = useState<string[]>([]);
+
   const groups = useMemo<UltronGroup[]>(() => {
     const indexed = threads.map((item, index) => ({ item, index }));
+    const doneStatuses = GROUP_DEFS.find(g => g.id === 'resolved')!.statuses;
     return GROUP_DEFS.map(g => ({
       id: g.id,
       label: g.label,
       threads: indexed
-        .filter(x => g.statuses.includes(x.item.status))
+        // Working keeps every in-flight case until it reaches Done — including
+        // ones that have flipped back to a follow-up question (needs_approval),
+        // so the card never drops out of the Working path mid-flow.
+        .filter(x => g.statuses.includes(x.item.status) ||
+          (g.id === 'live' && doppelgangerIds.includes(x.item.id) && !doneStatuses.includes(x.item.status)))
         // severity-first, then authored recency (ascending fixture index)
         .sort((a, b) =>
           (SEVERITY_RANK[a.item.severity] - SEVERITY_RANK[b.item.severity]) || (a.index - b.index))
         .map(x => x.item),
     }));
-  }, [threads]);
+  }, [threads, doppelgangerIds]);
 
   const selectedThread = threads.find(t => t.id === selectedId) ?? null;
 
@@ -119,6 +134,14 @@ export function useUltronStore(): UltronStore {
     const stage = stageById[threadId] ?? 0;
     const followUp = THREAD_FOLLOWUPS[threadId];
     const hasFollowUp = stage === 0 && !!followUp;
+
+    // Acting on a Live case leaves a doppelganger behind in the feed. Only the
+    // first commit (while it's still a needs-attention case) seeds it; follow-up
+    // commits act on the same already-tracked card.
+    const acted = threads.find(t => t.id === threadId);
+    if (acted && (acted.status === 'needs_approval' || acted.status === 'recommended')) {
+      setDoppelgangerIds(prev => (prev.includes(threadId) ? prev : [...prev, threadId]));
+    }
 
     // The activity sequence that will play during this execution (the follow-up
     // sequence when running the second step, otherwise the thread's own).
@@ -159,5 +182,5 @@ export function useUltronStore(): UltronStore {
     });
   };
 
-  return { threads, groups, selectedId, selectedThread, selectedStage, stageById, setSelectedId, commit, refine, saveWorkflow };
+  return { threads, groups, selectedId, selectedThread, selectedStage, stageById, doppelgangerIds, setSelectedId, commit, refine, saveWorkflow };
 }

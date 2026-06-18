@@ -269,28 +269,37 @@ const Card = styled.div<{ $expanded: boolean }>`
 
   /* Semantic card tone: high severity → orange, resolved-family → green,
      everything else (medium / low / none) → slate. */
-  /* Soft tonal glow layered ON TOP of the base bg (background-image only, so
-     the base background-color from the Card rule is preserved). */
+  /* Collapsed cards take a flat tonal fill (the tone's bg-tertiary, no
+     gradient); expanded cards keep the soft tonal glow layered on the base bg. */
   &[data-tone='orange'] {
-    background-image:
-      radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--color-orange-bg-secondary) 18%, transparent) 0%, transparent 60%),
-      linear-gradient(color-mix(in srgb, var(--color-orange-bg-secondary) 8%, transparent), color-mix(in srgb, var(--color-orange-bg-secondary) 8%, transparent));
+    ${p => (p.$expanded
+      ? `background-image:
+          radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--color-orange-bg-secondary) 18%, transparent) 0%, transparent 60%),
+          linear-gradient(color-mix(in srgb, var(--color-orange-bg-secondary) 8%, transparent), color-mix(in srgb, var(--color-orange-bg-secondary) 8%, transparent));`
+      : `background-image: none;
+         background-color: var(--color-orange-bg-tertiary);`)}
     &::before { background: ${p => (p.$expanded
       ? 'linear-gradient(to left, var(--color-orange-border-secondary) 0%, color-mix(in srgb, var(--color-orange-border-secondary) 35%, transparent) 100%)'
       : 'transparent')}; }
   }
   &[data-tone='green'] {
-    background-image:
-      radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--color-green-bg-secondary) 18%, transparent) 0%, transparent 60%),
-      linear-gradient(color-mix(in srgb, var(--color-green-bg-secondary) 8%, transparent), color-mix(in srgb, var(--color-green-bg-secondary) 8%, transparent));
+    ${p => (p.$expanded
+      ? `background-image:
+          radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--color-green-bg-secondary) 18%, transparent) 0%, transparent 60%),
+          linear-gradient(color-mix(in srgb, var(--color-green-bg-secondary) 8%, transparent), color-mix(in srgb, var(--color-green-bg-secondary) 8%, transparent));`
+      : `background-image: none;
+         background-color: var(--color-green-bg-tertiary);`)}
     &::before { background: ${p => (p.$expanded
       ? 'linear-gradient(to left, var(--color-green-border-secondary) 0%, color-mix(in srgb, var(--color-green-border-secondary) 35%, transparent) 100%)'
       : 'transparent')}; }
   }
   &[data-tone='slate'] {
-    background-image:
-      radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--color-slate-bg-secondary) 18%, transparent) 0%, transparent 60%),
-      linear-gradient(color-mix(in srgb, var(--color-slate-bg-secondary) 8%, transparent), color-mix(in srgb, var(--color-slate-bg-secondary) 8%, transparent));
+    ${p => (p.$expanded
+      ? `background-image:
+          radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--color-slate-bg-secondary) 18%, transparent) 0%, transparent 60%),
+          linear-gradient(color-mix(in srgb, var(--color-slate-bg-secondary) 8%, transparent), color-mix(in srgb, var(--color-slate-bg-secondary) 8%, transparent));`
+      : `background-image: none;
+         background-color: var(--color-slate-bg-tertiary);`)}
     &::before { background: ${p => (p.$expanded
       ? 'linear-gradient(to left, var(--color-slate-border-secondary) 0%, color-mix(in srgb, var(--color-slate-border-secondary) 35%, transparent) 100%)'
       : 'transparent')}; }

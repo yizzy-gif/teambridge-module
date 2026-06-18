@@ -11,7 +11,7 @@ import {
   NavTop, HeadingRow, NavHeading,
   SearchRow, FilterBtn,
   NavMiddle,
-  GroupRow, GroupIconSlot, GroupLabel, GroupChevron, GroupChildren, MenuGroupWrapper,
+  GroupRow, GroupLabel, GroupChevron, GroupChildren, MenuGroupWrapper,
   MenuSectionLabel,
   SecNavIconSlot,
   NavBottom, BottomDivider, MenuDivider, BottomItemIcon,
@@ -79,7 +79,6 @@ function MenuGroupItem({ group }: { group: SecondaryNavMenuGroup }) {
   return (
     <MenuGroupWrapper $outlined={group.outlined}>
       <GroupRow onClick={() => setExpanded(e => !e)} aria-expanded={expanded}>
-        <GroupIconSlot>{group.icon ?? <AsteriskIcon />}</GroupIconSlot>
         <GroupLabel>{group.label}</GroupLabel>
         {group.trailingBadge && (
           <span style={{ display: 'inline-flex', flexShrink: 0, marginRight: 4 }}>

@@ -6,15 +6,15 @@
    radial spark (lines), and more. Used for the loaders (orbit) and identity
    slots (circle) in place of the generic AILoader.
 
-   `tone="light"` is the default — it renders the glowing mark on black and then
-   luminance-keys it (brightness → alpha, recolored to dark slate), giving crisp
-   dark marks with a soft glow-derived aura on a TRANSPARENT background, so they
-   blend on any surface (matching the latest "Ultron Motion Identity" light style).
+   `tone="light"` is the default — it draws dark-slate cells directly (glow off)
+   on the transparent canvas (see pal('light')). No render-on-black + luminance-
+   key pass: drawCore lays down a soft non-glow aura so the mark still reads crisp
+   on any surface (matching the latest "Ultron Motion Identity" light style).
    ───────────────────────────────────────────────────────────────────────────── */
 
 import { useEffect, useRef } from 'react';
 
-export type AgentMarkKind = 'orbit' | 'circle' | 'lines' | 'magnetic' | 'bands';
+export type AgentMarkKind = 'orbit' | 'circle' | 'lines' | 'magnetic' | 'pulse' | 'bands';
 export type AgentMarkTone = 'light' | 'dark' | 'onblack' | 'tint';
 export type AgentMarkState = 'active' | 'idle' | 'static';
 
@@ -31,6 +31,13 @@ interface AgentMarkProps {
   motionSpeed?: number;
   /** Accent for glow tones. */
   accent?: string;
+  /** Overrides the mark's cell/core fill with any CSS color (hex, rgb(), or a
+   *  `var(--token)`). Resolved to RGB for the canvas. Use to tint a mark to a
+   *  semantic token — e.g. a settled case in `var(--color-content-disabled)`. */
+  color?: string;
+  /** Soft halo / drop-shadow behind the core (default true). Set false for dense
+   *  nav rows where the glow muddies the mark against the row background. */
+  coreHalo?: boolean;
   'aria-label'?: string;
   className?: string;
 }
@@ -48,6 +55,23 @@ function hexRGB(hex: string) {
   return ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255);
 }
 
+// Resolve any CSS color (hex, rgb(), or var(--token)) to an "r,g,b" string for
+// the canvas. CSS variables are looked up off the element; the result is then
+// normalised through the 2D context's color parser.
+function cssToRGB(ctx: CanvasRenderingContext2D, el: HTMLElement, color: string): string {
+  let value = color.trim();
+  const varMatch = value.match(/var\(\s*(--[^,)]+)/);
+  if (varMatch) value = getComputedStyle(el).getPropertyValue(varMatch[1]).trim() || value;
+  if (value.startsWith('#')) return hexRGB(value);
+  // Let the canvas normalise named/rgb()/hsl() colors, then pull the channels.
+  ctx.fillStyle = '#000';
+  ctx.fillStyle = value;
+  const resolved = ctx.fillStyle as string;
+  if (resolved.startsWith('#')) return hexRGB(resolved);
+  const nums = resolved.match(/[\d.]+/g);
+  return nums && nums.length >= 3 ? `${+nums[0]},${+nums[1]},${+nums[2]}` : '26,30,38';
+}
+
 function pal(tone: AgentMarkTone, accent: string): Pal {
   if (tone === 'light') return { dot: '26,30,38', core: '34,40,52', accent: '68,108,255', glow: false };
   if (tone === 'onblack') return { dot: '237,243,252', core: '255,255,255', accent, glow: true };
@@ -55,19 +79,34 @@ function pal(tone: AgentMarkTone, accent: string): Pal {
   return { dot: '228,238,252', core: '248,251,255', accent, glow: true };
 }
 
-interface Ctx { ctx: CanvasRenderingContext2D; w: number; h: number; dpr: number; size: number; state: AgentMarkState; }
+interface Ctx { ctx: CanvasRenderingContext2D; w: number; h: number; dpr: number; size: number; state: AgentMarkState; coreHalo: boolean; }
 
 function drawCore(e: Ctx, T: number, P: Pal) {
   const { ctx, w, h } = e, cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.39;
   const coreR = R * 0.2 * (0.9 + 0.14 * Math.sin(T * 1.5));
-  if (P.glow) {
-    const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 3);
-    cg.addColorStop(0, 'rgba(' + P.core + ',0.55)');
-    cg.addColorStop(1, 'rgba(' + P.accent + ',0)');
-    ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(cx, cy, coreR * 3, 0, 6.2832); ctx.fill();
+  const small = e.size < 24;
+  // glow / drop-shadow halo — removed at icon sizes under 24px, or when the
+  // caller opts out (coreHalo=false) for dense surfaces like nav rows.
+  if (!small && e.coreHalo) {
+    if (P.glow) {
+      const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 3);
+      cg.addColorStop(0, 'rgba(' + P.core + ',0.55)');
+      cg.addColorStop(1, 'rgba(' + P.accent + ',0)');
+      ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(cx, cy, coreR * 3, 0, 6.2832); ctx.fill();
+    } else {
+      const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 3.2);
+      cg.addColorStop(0, 'rgba(' + P.core + ',0.34)');
+      cg.addColorStop(0.5, 'rgba(' + P.core + ',0.13)');
+      cg.addColorStop(1, 'rgba(' + P.core + ',0)');
+      ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(cx, cy, coreR * 3.2, 0, 6.2832); ctx.fill();
+    }
   }
+  // solid core rendered with a soft layer blur
+  ctx.save();
+  ctx.filter = 'blur(' + Math.max(0.4, coreR * 0.22).toFixed(2) + 'px)';
   ctx.fillStyle = 'rgba(' + P.core + ',' + (P.glow ? 1 : 0.95) + ')';
   ctx.beginPath(); ctx.arc(cx, cy, Math.max(0.8, coreR), 0, 6.2832); ctx.fill();
+  ctx.restore();
 }
 
 function drawOrbit(e: Ctx, T: number, P: Pal) {
@@ -300,58 +339,44 @@ function drawMagnetic(e: Ctx, T: number, P: Pal) {
   ctx.restore();
 }
 
+// Pulse — waiting / ready: only the breathing core, no cells or trails.
+function drawPulse(e: Ctx, T: number, P: Pal) {
+  drawCore(e, T, P);
+}
+
 const DRAW: Record<AgentMarkKind, (e: Ctx, T: number, P: Pal) => void> = {
-  orbit: drawOrbit, circle: drawCircle, lines: drawLines, magnetic: drawMagnetic, bands: drawCircle,
+  orbit: drawOrbit, circle: drawCircle, lines: drawLines, magnetic: drawMagnetic, pulse: drawPulse, bands: drawCircle,
 };
 
 export function AgentMark({
   mark = 'orbit', size = 16, tone = 'light', state = 'active',
-  motionSpeed = 1, accent = '#96B9FF', className, 'aria-label': ariaLabel,
+  motionSpeed = 1, accent = '#96B9FF', color, coreHalo = true, className, 'aria-label': ariaLabel,
 }: AgentMarkProps) {
   const ref = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // willReadFrequently: light mode reads the pixels back each frame to key the
-    // mark onto a transparent background (see paint()).
-    const ctx = el.getContext('2d', { willReadFrequently: true });
+    const ctx = el.getContext('2d');
     if (!ctx) return;
 
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = Math.max(2, Math.round(size * dpr)), H = W;
     el.width = W; el.height = H;
-    const e: Ctx = { ctx, w: W, h: H, dpr, size, state };
-    // Light mode (the latest identity style): render the glowing mark on a black
-    // field, then luminance-key it — brightness becomes alpha and the pixels are
-    // recolored to dark slate. The result is dark marks (with a soft glow-derived
-    // aura) on a TRANSPARENT background, so they blend on any surface — no opaque
-    // tile. Other tones paint directly.
-    const invert = tone === 'light';
-    const P = pal(invert ? 'onblack' : tone, hexRGB(accent));
+    const e: Ctx = { ctx, w: W, h: H, dpr, size, state, coreHalo };
+    // Each tone paints directly with its palette. `light` resolves to dark-slate
+    // cells with glow off (see pal()), so the mark draws crisp on the transparent
+    // canvas — no render-on-black + luminance-key pass.
+    const P = pal(tone, hexRGB(accent));
+    // Optional explicit tint — recolors the cells/core (e.g. a settled case in
+    // content-disabled) while keeping the tone's glow behaviour.
+    if (color) { const rgb = cssToRGB(ctx, el, color); P.dot = rgb; P.core = rgb; }
     const draw = DRAW[mark] ?? drawOrbit;
-    // Dark slate the keyed marks resolve to (≈ --color-content-primary).
-    const KR = 26, KG = 30, KB = 38;
 
     const paint = (T: number) => {
       ctx.clearRect(0, 0, W, H);
       const tt = state === 'static' ? 0.62 : T;
-      if (invert) {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, W, H);
-      }
       draw(e, tt, P);
-      if (invert) {
-        const img = ctx.getImageData(0, 0, W, H);
-        const d = img.data;
-        for (let i = 0; i < d.length; i += 4) {
-          // luminance of the bright-on-black tile → alpha; black bg → transparent.
-          const lum = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
-          d[i] = KR; d[i + 1] = KG; d[i + 2] = KB; d[i + 3] = lum;
-        }
-        ctx.putImageData(img, 0, 0);
-      }
     };
 
     const reduced = (() => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } })();
@@ -365,7 +390,7 @@ export function AgentMark({
     const loop = (now: number) => { paint((now / 1000) * sp); raf = requestAnimationFrame(loop); };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [mark, size, tone, state, motionSpeed, accent]);
+  }, [mark, size, tone, state, motionSpeed, accent, color, coreHalo]);
 
   return (
     <canvas
