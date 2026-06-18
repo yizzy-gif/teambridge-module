@@ -684,7 +684,14 @@ function EngageExpandedDetail({ record, mainColSpan, totalCols }: { record: Enga
             </Section>
 
             <RecalcRow>
-              <Button size="sm" variant="secondary" onClick={() => {}}>Recalculate Outcome</Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                leadingArtwork={<RefreshCw04Icon size={14} />}
+                onClick={() => {}}
+              >
+                Recalculate Outcome
+              </Button>
               <LastCalcText>Last calculated {formatAbsoluteTimestamp(MOCK_NOW.toISOString())}</LastCalcText>
             </RecalcRow>
           </div>
@@ -751,7 +758,14 @@ function EngagelessExpandedDetail({ record, totalCols }: { record: EngagelessExe
             </Section>
 
             <RecalcRow>
-              <Button size="sm" variant="secondary" onClick={() => {}}>Recalculate Outcome</Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                leadingArtwork={<RefreshCw04Icon size={14} />}
+                onClick={() => {}}
+              >
+                Recalculate Outcome
+              </Button>
               <LastCalcText>Last calculated {formatAbsoluteTimestamp(MOCK_NOW.toISOString())}</LastCalcText>
             </RecalcRow>
           </div>

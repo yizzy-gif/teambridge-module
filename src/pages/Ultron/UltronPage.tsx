@@ -1,120 +1,112 @@
 /* ─────────────────────────────────────────────────────────────────────────────
-   Ultron — main detail view.
-   Shows the thread selected in the Ultron sidebar (grouped Needs attention /
-   Live stream / Resolved). Actionable threads show the recommendation prompt +
-   action pills; every thread shows its case body (timeline + reasoning +
-   outcome). DEMO ONLY — state lives in the shared store hook.
+   Ultron — sectioned feed (Live / Working / Done).
+   One scrolling page whose content depends on the active section:
+     · live    — cases that need attention (the entry feed)
+     · working — cases Ultron is actively working (in-progress / monitoring)
+     · done    — terminal cases (resolved / auto-resolved / unresolved / workflow)
+   The Ultron identity card heads every section; the cases below are laid out as
+   a vertical accordion (one card open at a time). DEMO ONLY — state lives in the
+   shared store hook.
    ───────────────────────────────────────────────────────────────────────────── */
 
+import { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
-import {
-  Avatar, StatusTag, Button, Save01Icon, Link01Icon, AILoader,
-} from 'alloy-design-system';
-import type { ThreadItem } from './types';
-import { THREAD_SUBJECTS, threadAvatarUrl, THREAD_PROMPTS } from './fixtures';
-import {
-  STATUS_META, isPurpleRow, isRefinementAction, OutcomeBlock, toneFor,
-} from './ultronShared';
+import type { ThreadItem, ThreadStatus } from './types';
+import { SEVERITY_RANK } from './ultronShared';
+import { UltronIdentityCard } from './UltronIdentityCard';
+import { UltronCard } from './UltronCard';
+
+/** Which lifecycle bucket the page is showing. Mirrors the sidebar groups. */
+export type UltronSection = 'live' | 'working' | 'done';
+
+const SECTION_STATUSES: Record<UltronSection, ThreadStatus[]> = {
+  live:    ['needs_approval', 'recommended'],
+  working: ['in_progress', 'monitoring'],
+  done:    ['resolved', 'auto_resolved', 'workflow_available', 'unresolved'],
+};
+
+const EMPTY_COPY: Record<UltronSection, string> = {
+  live:    'Nothing needs your attention right now.',
+  working: 'Ultron isn’t actively working anything right now.',
+  done:    'No completed cases yet.',
+};
 
 interface UltronPageProps {
-  thread: ThreadItem | null;
+  /** Full thread list from the store (current state per thread). */
+  threads: ThreadItem[];
+  /** Decision stage per thread id (0 = first CTA, 1 = follow-up CTA). */
+  stageById: Record<string, number>;
+  /** Active section — Live, Working, or Done. */
+  section: UltronSection;
+  /** Thread the sidebar has selected — expanded + scrolled into view. */
+  selectedId: string | null;
   onAction: (threadId: string, label: string) => void;
   onRefinement: (label: string) => void;
   onSaveWorkflow: (thread: ThreadItem) => void;
 }
 
-export function UltronPage({ thread, onAction, onRefinement, onSaveWorkflow }: UltronPageProps) {
-  if (!thread) {
-    return (
-      <Page>
-        <Empty role="status">Select a thread to view it.</Empty>
-      </Page>
-    );
-  }
+export function UltronPage({
+  threads, stageById, section, selectedId, onAction, onRefinement, onSaveWorkflow,
+}: UltronPageProps) {
+  // Cases in the active section, severity-first then by authored recency.
+  const ids = threads
+    .map((t, index) => ({ t, index }))
+    .filter(({ t }) => SECTION_STATUSES[section].includes(t.status))
+    .sort((a, b) =>
+      (SEVERITY_RANK[a.t.severity] - SEVERITY_RANK[b.t.severity]) || (a.index - b.index))
+    .map(({ t }) => t.id);
 
-  const actionable = thread.status === 'needs_approval' || thread.status === 'recommended';
-  const executing = thread.status === 'in_progress';
-  const primaryLabel = thread.actions[thread.actions.length - 1];
-  const secondaryLabels = thread.actions.slice(0, -1);
-  const purple = isPurpleRow(thread);
+  // Accordion: at most one card open at a time, defaulting to the selected case.
+  const [expandedId, setExpandedId] = useState<string | null>(() => selectedId ?? null);
 
-  // Card tone (shared with the sidebar dots): green / orange / slate.
-  const tone = toneFor(thread);
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // The last selection we scrolled to. Seeded on first run with the initial
+  // selection so the feed opens at the top (the Ultron identity card — the
+  // entry point) instead of jumping to the default case. Comparing values
+  // (rather than a mount flag) also makes this safe under StrictMode's
+  // double-invoked effects.
+  const lastScrolledId = useRef<string | null | undefined>(undefined);
 
-  const trigger = (label: string) => {
-    if (isRefinementAction(label)) onRefinement(label);
-    else onAction(thread.id, label);
-  };
+  // Selecting a case in the sidebar expands it (collapsing any other) and
+  // scrolls it into view within the section.
+  useEffect(() => {
+    if (lastScrolledId.current === undefined) { lastScrolledId.current = selectedId; return; }
+    if (!selectedId || selectedId === lastScrolledId.current) return;
+    lastScrolledId.current = selectedId;
+    setExpandedId(selectedId);
+    cardRefs.current[selectedId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [selectedId]);
 
   return (
     <Page>
-      <Card data-tone={tone}>
-        <CardHeader>
-          <HeaderLeft>
-            <Avatar
-              size="sm"
-              src={threadAvatarUrl(thread.id)}
-              name={THREAD_SUBJECTS[thread.id]}
-              alt={THREAD_SUBJECTS[thread.id] ?? ''}
-            />
-            <HeaderText>
-              <CardTitle>{thread.title}</CardTitle>
-            </HeaderText>
-          </HeaderLeft>
-          <Tags>
-            {!actionable && (
-              <StatusTag status={STATUS_META[thread.status].tag} size="sm">
-                {STATUS_META[thread.status].label}
-              </StatusTag>
-            )}
-            <Button variant="ghost" size="xs" iconOnly aria-label="Open case">
-              <Link01Icon size={16} />
-            </Button>
-          </Tags>
-        </CardHeader>
-
-        <CardBody>
-          {actionable && <Prompt>{THREAD_PROMPTS[thread.id] ?? thread.recommendation}</Prompt>}
-
-          {executing && (
-            <Executing role="status">
-              <AILoader size="sm" variant="gradient" state="loading" aria-label="Working" />
-              <span>Ultron is working on it…</span>
-            </Executing>
-          )}
-
-          <OutcomeBlock thread={thread} />
-
-          {(actionable || purple) && (
-            <Actions>
-              {actionable && primaryLabel && (
-                <Pill variant="primary" size="sm" onClick={() => trigger(primaryLabel)}>
-                  {primaryLabel}
-                </Pill>
-              )}
-              {actionable && secondaryLabels.map(label => (
-                <Pill key={label} variant="tertiary" size="sm" onClick={() => trigger(label)}>
-                  {label}
-                </Pill>
-              ))}
-              {actionable && (
-                <OtherPill variant="tertiary" size="sm" onClick={() => onRefinement('Other')}>
-                  Other
-                </OtherPill>
-              )}
-              {purple && (
-                <Button
-                  variant="secondary" size="sm"
-                  leadingArtwork={<Save01Icon size={14} />}
-                  onClick={() => onSaveWorkflow(thread)}
-                >
-                  Save as workflow
-                </Button>
-              )}
-            </Actions>
-          )}
-        </CardBody>
-      </Card>
+      {/* Full-width sticky header (spans the main container, keeps page padding). */}
+      <FeedHeader>
+        <HeaderSolid><UltronIdentityCard /></HeaderSolid>
+        <HeaderFade aria-hidden="true" />
+      </FeedHeader>
+      <Feed>
+        {ids.length === 0 ? (
+          <Empty role="status">{EMPTY_COPY[section]}</Empty>
+        ) : (
+          ids.map(id => {
+            const thread = threads.find(t => t.id === id);
+            if (!thread) return null;
+            return (
+              <CardSlot key={id} ref={el => { cardRefs.current[id] = el; }}>
+                <UltronCard
+                  thread={thread}
+                  stage={stageById[id] ?? 0}
+                  expanded={expandedId === id}
+                  onToggle={() => setExpandedId(cur => (cur === id ? null : id))}
+                  onAction={onAction}
+                  onRefinement={onRefinement}
+                  onSaveWorkflow={onSaveWorkflow}
+                />
+              </CardSlot>
+            );
+          })
+        )}
+      </Feed>
     </Page>
   );
 }
@@ -122,139 +114,53 @@ export function UltronPage({ thread, onAction, onRefinement, onSaveWorkflow }: U
 // ── Styled ───────────────────────────────────────────────────────────────────
 
 const Page = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  padding: var(--space-8) var(--space-4);
-  @media (min-width: 1001px) {
-    padding-left: 120px;
-    padding-right: 120px;
-  }
   height: 100%;
   min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--space-5) var(--space-5);
   font-family: var(--font-sans);
   color: var(--color-content-primary);
 `;
 
-const Card = styled.div`
+/* Vertical feed column — centered, comfortable reading width. */
+const Feed = styled.div`
   display: flex;
   flex-direction: column;
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border-opaque);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-below-low);
-  overflow: hidden;
-
-  /* Semantic card tone: high severity → orange, resolved-family → green,
-     everything else (medium / low / none) → slate. */
-  /* Soft tonal glow layered ON TOP of the base bg (background-image only, so
-     the base background-color from the Card rule is preserved). */
-  &[data-tone='orange'] {
-    background-image: radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--color-orange-bg-secondary) 14%, transparent) 0%, transparent 50%);
-    border-color: var(--color-orange-border-tertiary);
-  }
-  &[data-tone='green'] {
-    background-image: radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--color-green-bg-secondary) 14%, transparent) 0%, transparent 50%);
-    border-color: var(--color-green-border-tertiary);
-  }
-  &[data-tone='slate'] {
-    background-image: radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--color-slate-bg-secondary) 14%, transparent) 0%, transparent 50%);
-    border-color: var(--color-slate-border-tertiary);
-  }
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
 `;
 
-const CardHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  background: transparent;
-`;
-
-const HeaderLeft = styled.div`
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-width: 0;
-`;
-
-const HeaderText = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-`;
-
-const CardTitle = styled.span`
-  /* Alloy label / medium: 14px · medium · relaxed · wide tracking */
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-medium);
-  line-height: var(--line-height-relaxed);
-  letter-spacing: var(--tracking-wide);
-  color: var(--color-content-primary);
-`;
-
-const Tags = styled.div`
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-shrink: 0;
-`;
-
-const CardBody = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  padding: var(--space-4);
-  margin: var(--space-1);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-primary);
-`;
-
-const Executing = styled.div`
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  color: var(--color-content-secondary);
-`;
-
-const Prompt = styled.p`
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: var(--text-xl);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-snug);
-  color: var(--color-content-primary);
-`;
-
-const Actions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-`;
-
-const Pill = styled(Button)`
-  border-radius: var(--radius-full);
-  padding-left: var(--space-3);
-  padding-right: var(--space-3);
-`;
-
-const OtherPill = styled(Button)`
-  border-radius: var(--radius-full);
-  border-style: dashed;
-  color: var(--color-content-secondary);
-  padding-left: var(--space-3);
-  padding-right: var(--space-3);
+/* Anchor for scroll-into-view; scroll-margin keeps the card clear of the top
+   edge when the sidebar selects it. */
+const CardSlot = styled.div`
+  scroll-margin-top: var(--space-5);
 `;
 
 const Empty = styled.div`
-  padding: var(--space-16);
+  padding: var(--space-12) var(--space-4);
   text-align: center;
   font-size: var(--text-sm);
   color: var(--color-content-tertiary);
+`;
+
+/* Fixed feed header: the Ultron identity rides an opaque band pinned to the top,
+   with a 48px gradient fade beneath it (page bg 100% → transparent 0%, top to
+   bottom) so cases dissolve as they scroll underneath. */
+const FeedHeader = styled.div`
+  position: sticky;
+  top: 0;
+  z-index: 2;
+`;
+
+const HeaderSolid = styled.div`
+  padding-top: var(--space-5);
+  background: var(--color-bg-primary);
+`;
+
+const HeaderFade = styled.div`
+  height: 48px;
+  background: linear-gradient(to bottom, var(--color-bg-primary) 0%, transparent 100%);
+  pointer-events: none;
 `;

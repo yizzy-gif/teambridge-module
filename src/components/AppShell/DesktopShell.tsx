@@ -29,6 +29,7 @@ export function DesktopShell({
   // SecondaryNav props (heading separated)
   secNavHeading,
   menuEntries,
+  menuHeader,
   pageEntries,
   showSearch,
   searchValue,
@@ -48,6 +49,7 @@ export function DesktopShell({
   // AppShell own
   children,
   showSecondaryNav = true,
+  showTopNav = true,
 }: AppShellProps) {
   // Drag-resizable secondary nav width. Persisted across reloads via
   // localStorage so the user's choice sticks.
@@ -86,6 +88,7 @@ export function DesktopShell({
           <SecondaryNav
             heading={secNavHeading}
             menuEntries={menuEntries}
+            menuHeader={menuHeader}
             pageEntries={pageEntries}
             isVisible={true}
             showSearch={showSearch}
@@ -102,16 +105,18 @@ export function DesktopShell({
         )}
 
         <ContentArea>
-          <TopNav
-            heading={heading}
-            actions={actions}
-            showActivityButton={showActivityButton}
-            showPonderButton={showPonderButton}
-            noBorder={noBorder}
-            onActivityClick={onActivityClick}
-            onPonderClick={onPonderClick}
-            onDotsClick={onDotsClick}
-          />
+          {showTopNav && (
+            <TopNav
+              heading={heading}
+              actions={actions}
+              showActivityButton={showActivityButton}
+              showPonderButton={showPonderButton}
+              noBorder={noBorder}
+              onActivityClick={onActivityClick}
+              onPonderClick={onPonderClick}
+              onDotsClick={onDotsClick}
+            />
+          )}
           <ContentMain>
             {children}
           </ContentMain>

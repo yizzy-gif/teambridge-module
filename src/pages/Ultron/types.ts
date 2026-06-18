@@ -11,6 +11,7 @@ export type ThreadStatus =
   | 'recommended'
   | 'in_progress'
   | 'monitoring'
+  | 'unresolved'
   | 'resolved'
   | 'auto_resolved'
   | 'workflow_available';

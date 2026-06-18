@@ -18,7 +18,7 @@ export function SecondarySheet({ moduleLabel, entries, onSelect }: SecondaryShee
   return (
     <BottomSheet title={moduleLabel} ariaLabel={`${moduleLabel} sections`}>
       <List>
-        {entries.map((entry, i) => {
+        {entries.map((entry) => {
           if (entry.type === 'single') {
             const item = entry.item;
             return (
@@ -41,7 +41,7 @@ export function SecondarySheet({ moduleLabel, entries, onSelect }: SecondaryShee
               </Row>
             );
           }
-          // Group
+          if (entry.type !== 'group') return null;   // label / divider: not shown in the sheet
           const group = entry.group;
           return (
             <div key={group.id}>

@@ -7,12 +7,26 @@
 import { useState } from 'react';
 import styled from 'styled-components';
 import {
-  AIAssistantMessage, AILabel, AILoader,
+  AIAssistantMessage, AILabel,
   AIActivityTrail, AIActivityStep, Eyebrow,
+  MessageCircle02Icon, ClockIcon, CheckCircleIcon, CurrencyDollarIcon, BarChart02Icon, Edit05Icon, AlertTriangleIcon,
   type StatusTagStatus,
   type AIActivityStepType,
 } from 'alloy-design-system';
 import type { ThreadItem, ThreadSeverity, ThreadStatus } from './types';
+import { AgentMark } from './AgentMark';
+
+/** Working/activity icon keys → Alloy icons (shared by the execution
+ *  activities and the past-activity trail). */
+export const WORKING_ICON = {
+  send:  MessageCircle02Icon,
+  clock: ClockIcon,
+  done:  CheckCircleIcon,
+  rate:  CurrencyDollarIcon,
+  chart: BarChart02Icon,
+  edit:  Edit05Icon,
+  alert: AlertTriangleIcon,
+} as const;
 
 // ── Severity ───────────────────────────────────────────────────────────────
 
@@ -87,6 +101,7 @@ export const STATUS_META: Record<ThreadStatus, StatusMeta> = {
   recommended:        { label: 'Recommended',    tag: 'info' },
   in_progress:        { label: 'In progress',    tag: 'pending' },
   monitoring:         { label: 'Monitoring',     tag: 'neutral' },
+  unresolved:         { label: 'Unresolved',     tag: 'warning' },
   resolved:           { label: 'Resolved',       tag: 'success' },
   auto_resolved:      { label: 'Auto-resolved',  tag: 'success' },
   workflow_available: { label: 'Workflow ready', tag: 'neutral' },
@@ -110,7 +125,21 @@ export const isPurpleRow = (t: ThreadItem): boolean =>
 /** Earlier secondary actions named like "Review …" / "Adjust …" are refinement
  *  stubs (out of scope): they render and toast but do NOT transition the case. */
 export const isRefinementAction = (label: string): boolean =>
-  /^(review|adjust)\b/i.test(label);
+  /^(review|adjust|revisit|update)\b/i.test(label);
+
+/** Generic resolution options for any unresolved case (the case-specific
+ *  suggestion lives in the prompt). Last entry is the primary action.
+ *  Revisit / Update are stubs (isRefinementAction); Resolve runs the fix. */
+export const UNRESOLVED_ACTIONS = ['Revisit', 'Update', 'Resolve'];
+
+/** A prompt asks for more than one action when it conjoins clauses with a
+ *  comma or "and" ("… X and Y?", "… X, Y, and Z?"). Such cases get a combined
+ *  "Yes, do it all" primary followed by the individual action buttons. */
+export const hasMultipleCtas = (prompt: string): boolean =>
+  /,|\sand\s/.test(prompt);
+
+/** Combined primary label shown when a prompt bundles several actions. */
+export const DO_IT_ALL_LABEL = 'Yes, do it all';
 
 // ── Stream filter (lifecycle SegmentedControl) ───────────────────────────────
 
@@ -176,7 +205,7 @@ const STATE_TO_STEP_TYPE: Record<string, AIActivityStepType> = {
 /** "Teambridge AI" identity label with the animated star, for AI messages. */
 export function UltronLabel() {
   return (
-    <AILabel avatar={<AILoader size="xs" variant="gradient" state="ready" />}>
+    <AILabel avatar={<AgentMark mark="circle" size={16} tone="light" state="idle" aria-label="Ultron" />}>
       Ultron
     </AILabel>
   );
@@ -203,35 +232,21 @@ const Body = styled.div`
   gap: var(--space-5);
 `;
 
-const OutcomeRow = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--color-success-bg);
-  color: var(--color-success-content);
+const OutcomeText = styled.p`
+  margin: 0;
   font-family: var(--font-sans);
   font-size: var(--text-sm);
   line-height: var(--line-height-normal);
+  color: var(--color-content-secondary);
 `;
 
-const OutcomeLabel = styled.span`
-  font-weight: var(--font-weight-semibold);
-`;
-
-/** Standalone Outcome line for resolved / auto_resolved cases (no thinking or
- *  reasoning) — used where the case body's timeline + reasoning are omitted. */
+/** Standalone outcome text for resolved / auto_resolved cases (no label, box,
+ *  or padding — just the sentence). */
 export function OutcomeBlock({ thread }: { thread: ThreadItem }) {
   if (!((thread.status === 'resolved' || thread.status === 'auto_resolved') && thread.outcome)) {
     return null;
   }
-  return (
-    <OutcomeRow>
-      <OutcomeLabel>Outcome</OutcomeLabel>
-      <span>{thread.outcome}</span>
-    </OutcomeRow>
-  );
+  return <OutcomeText>{thread.outcome}</OutcomeText>;
 }
 
 /**
@@ -287,10 +302,10 @@ export function CaseBody({ thread }: { thread: ThreadItem }) {
       </Section>
 
       {(thread.status === 'resolved' || thread.status === 'auto_resolved') && thread.outcome && (
-        <OutcomeRow>
-          <OutcomeLabel>Outcome</OutcomeLabel>
-          <span>{thread.outcome}</span>
-        </OutcomeRow>
+        <Section>
+          <Eyebrow>Outcome</Eyebrow>
+          <OutcomeText>{thread.outcome}</OutcomeText>
+        </Section>
       )}
     </Body>
   );

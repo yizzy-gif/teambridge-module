@@ -12,6 +12,9 @@ import 'alloy-design-system/styles/artwork.css';
 // 2. Geist font faces (geist v1.7+ ships woff2 only, no style.css)
 import './fonts.css';
 
+// 3. Consumer-side Alloy overrides (loaded last so they win) — bottom-right toasts
+import './ultron-overrides.css';
+
 import { ToastProvider } from 'alloy-design-system';
 import App from './App';
 

@@ -1,8 +1,12 @@
 export { UltronPage } from './UltronPage';
+export type { UltronSection } from './UltronPage';
+export { UltronIdentityCard } from './UltronIdentityCard';
+export { AgentMark } from './AgentMark';
+export { MemoryPage } from './MemoryPage';
 export { UltronSidebar } from './UltronSidebar';
 export { AccountDbSidebar, ACCOUNT_COLLECTIONS } from './AccountDbSidebar';
 export { AccountDatabasePage } from './AccountDatabasePage';
 export { SeverityDot, ToneDot, toneFor } from './ultronShared';
-export { useUltronStore } from './store';
+export { useUltronStore, EXECUTION_ACTIVITIES, ACTIVITY_STEP_MS } from './store';
 export type { UltronGroup, UltronStore } from './store';
 export type { ThreadItem } from './types';

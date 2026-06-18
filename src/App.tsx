@@ -16,9 +16,9 @@ import {
   Grid01Icon, GitBranch01Icon, FeatherIcon, LineChartUp01Icon, SettingsGearIcon,
   HomeLineIcon, BarChart02Icon, ListBulletIcon, CheckCircleIcon, Breadcrumb,
   SegmentedControl,
-  AILoader, Tag, Badge, ZapIcon,
+  Tag, Badge, ZapIcon,
   Pin01Icon,
-  AlertTriangleIcon, ActivityIcon,
+  AlertTriangleIcon, Save01Icon,
   useToast,
 } from 'alloy-design-system';
 import { HeadingText } from './components/TopNav/TopNav.styles';
@@ -34,7 +34,8 @@ import {
   getAppNameById,
 } from './pages';
 import {
-  UltronPage, AccountDatabasePage, useUltronStore, ACCOUNT_COLLECTIONS, ToneDot, toneFor,
+  UltronPage, MemoryPage, AccountDatabasePage, useUltronStore, ACCOUNT_COLLECTIONS, ToneDot, toneFor, AgentMark,
+  type UltronSection,
 } from './pages/Ultron';
 import { AISpecialistsListPage } from './pages/AIHome/AISpecialists';
 import { AISpecialistPersonaDetail } from './pages/AIHome/AISpecialists/PersonaDetail';
@@ -408,7 +409,7 @@ const APP_LABELS: Record<string, string> = {
 // stream / Resolved), keyed by the store group id.
 const HOME_GROUP_ICON: Record<string, React.ReactNode> = {
   needs_attention: <AlertTriangleIcon size={16} />,
-  live:            <ActivityIcon size={16} />,
+  live:            <AgentMark mark="lines" size={24} tone="light" state="active" />,
   resolved:        <CheckCircleIcon size={16} />,
 };
 
@@ -589,7 +590,9 @@ export default function App() {
   };
   // Home secondary-nav body toggle: 'ultron' shows Ultron threads grouped by
   // lifecycle; 'account' shows the (stubbed) Account database collections.
-  const [homeView, setHomeView] = useState<'ultron' | 'account'>('ultron');
+  const [homeView, setHomeView] = useState<'ultron' | 'account' | 'memory'>('ultron');
+  // Which Ultron section the feed is showing: Live, Working, or Done.
+  const [homeSection, setHomeSection] = useState<UltronSection>('live');
   const [accountCollection, setAccountCollection] = useState('employees');
   // Shared Ultron store (threads + grouping + selection) — drives both the
   // sidebar and the main detail view.
@@ -662,6 +665,15 @@ export default function App() {
             onClick: () => setActivePageId('usage'),
           },
         ]),
+    ...(activeId === 'home'
+      ? [{
+          id: 'memory',
+          label: 'Memory',
+          icon: <Save01Icon size={16} />,
+          isActive: homeView === 'memory',
+          onClick: () => setHomeView('memory'),
+        }]
+      : []),
     { id: 'settings', label: 'Settings', icon: <SettingsGearIcon size={16} /> },
   ];
 
@@ -740,7 +752,7 @@ export default function App() {
   const topNavHeading: React.ReactNode = (() => {
     if (activePageId === 'usage') return <HeadingText>Usage</HeadingText>;
     if (activeId === 'home') {
-      return <HeadingText>{homeView === 'account' ? 'Account database' : 'Ultron'}</HeadingText>;
+      return <HeadingText>{homeView === 'memory' ? 'Memory' : homeView === 'account' ? 'Account database' : 'Ultron'}</HeadingText>;
     }
     if (activeId === 'apps' && secActiveId === 'app-marketplace' && !activePageId?.startsWith('app:')) {
       return (
@@ -820,7 +832,7 @@ export default function App() {
       <SegmentedControl.Item
         value="ultron"
         leadingIcon={
-          <AILoader variant={homeView === 'ultron' ? 'gradient-fill' : 'inverse'} state="ready" size={14} />
+          <AgentMark mark="circle" size={16} tone="light" state="idle" aria-label="Ultron" />
         }
       >
         Ultron
@@ -843,23 +855,51 @@ export default function App() {
             onClick: () => setAccountCollection(c.id),
           },
         }))
-      : ultron.groups.map(g => ({
-          type: 'group' as const,
-          group: {
-            id: g.id,
-            label: g.label,
-            icon: HOME_GROUP_ICON[g.id],
-            trailingBadge: <Badge>{g.threads.length}</Badge>,
-            defaultExpanded: true,
-            children: g.threads.map(t => ({
-              id: t.id,
-              label: t.name,
-              icon: <ToneDot data-tone={toneFor(t)} aria-hidden="true" />,
-              isActive: ultron.selectedId === t.id,
-              onClick: () => ultron.setSelectedId(t.id),
-            })),
-          },
-        }));
+      : ultron.groups.flatMap<SecondaryNavMenuEntry>(g => {
+          // The needs-attention cases ARE the feed, so the group collapses into a
+          // single "Live" entry that jumps to the top of the feed when clicked.
+          if (g.id === 'needs_attention') {
+            return [{
+              type: 'single' as const,
+              item: {
+                id: 'live-feed',
+                label: 'Live',
+                icon: <AgentMark mark="circle" size={24} tone="light" state="active" />,
+                isActive: homeView === 'ultron' && homeSection === 'live',
+                onClick: () => { setHomeView('ultron'); setHomeSection('live'); if (g.threads[0]) ultron.setSelectedId(g.threads[0].id); },
+              },
+            }];
+          }
+          // Working and Done are their own pages (sections); a child opens its
+          // case on that page.
+          const childSection: UltronSection = g.id === 'resolved' ? 'done' : 'working';
+          const groupEntry = {
+            type: 'group' as const,
+            group: {
+              id: g.id,
+              label: g.label,
+              icon: HOME_GROUP_ICON[g.id],
+              trailingBadge: <Badge>{g.threads.length}</Badge>,
+              defaultExpanded: true,
+              outlined: false,
+              children: g.threads.map(t => ({
+                id: t.id,
+                label: t.name,
+                // Working cases carry Ultron's identity mark (orbiting while it
+                // processes, idling while it monitors); Done cases get a tone dot.
+                icon: childSection === 'working'
+                  ? <AgentMark mark="orbit" size={24} tone="light" state={t.status === 'in_progress' ? 'active' : 'idle'} aria-label="Working" />
+                  : <ToneDot data-tone={toneFor(t)} aria-hidden="true" />,
+                isActive: homeView === 'ultron' && homeSection === childSection && ultron.selectedId === t.id,
+                onClick: () => { setHomeView('ultron'); setHomeSection(childSection); ultron.setSelectedId(t.id); },
+              })),
+            },
+          };
+          // Divider above the Done group.
+          return g.id === 'resolved'
+            ? [{ type: 'divider' as const, id: 'done-divider' }, groupEntry]
+            : [groupEntry];
+        });
 
   // Module catalog for PrimarySheet + ModuleDrawer. Groups mirror the
   // three-tier layout of the desktop PrimaryNav (main / tools /
@@ -885,8 +925,12 @@ export default function App() {
       menuEntries={activeId === 'home'
         ? homeMenuEntries
         : buildMenuEntries(activeId, secActiveId, handleSecNavClick, activePageId !== null, pinnedAppIds, handleTogglePin)}
+      // Ultron's identity card is now the feed's entry point (see UltronPage),
+      // so the sidebar no longer repeats it as a menu header.
+      menuHeader={undefined}
       pageEntries={pageEntries}
       showSecondaryNav={activeId !== 'apps'}
+      showTopNav={!(activeId === 'home' && homeView === 'ultron')}
       showSearch={activeId !== 'home'}
       searchValue={search}
       onSearchChange={setSearch}
@@ -917,11 +961,16 @@ export default function App() {
       {activePageId === 'usage' ? (
         <UsagePage />
       ) : activeId === 'home' ? (
-        homeView === 'account' ? (
+        homeView === 'memory' ? (
+          <MemoryPage />
+        ) : homeView === 'account' ? (
           <AccountDatabasePage collectionId={accountCollection} />
         ) : (
           <UltronPage
-            thread={ultron.selectedThread}
+            threads={ultron.threads}
+            stageById={ultron.stageById}
+            section={homeSection}
+            selectedId={ultron.selectedId}
             onAction={ultron.commit}
             onRefinement={ultron.refine}
             onSaveWorkflow={ultron.saveWorkflow}

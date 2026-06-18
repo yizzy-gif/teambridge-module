@@ -14,7 +14,7 @@ import {
   GroupRow, GroupIconSlot, GroupLabel, GroupChevron, GroupChildren, MenuGroupWrapper,
   MenuSectionLabel,
   SecNavIconSlot,
-  NavBottom, BottomDivider, BottomItemIcon,
+  NavBottom, BottomDivider, MenuDivider, BottomItemIcon,
   ResizeHandle,
   SECONDARY_NAV_WIDTH,
 } from './SecondaryNav.styles';
@@ -77,7 +77,7 @@ function MenuGroupItem({ group }: { group: SecondaryNavMenuGroup }) {
   const [expanded, setExpanded] = useState(group.defaultExpanded ?? true);
 
   return (
-    <MenuGroupWrapper>
+    <MenuGroupWrapper $outlined={group.outlined}>
       <GroupRow onClick={() => setExpanded(e => !e)} aria-expanded={expanded}>
         <GroupIconSlot>{group.icon ?? <AsteriskIcon />}</GroupIconSlot>
         <GroupLabel>{group.label}</GroupLabel>
@@ -128,6 +128,8 @@ export interface SecondaryNavProps {
   isVisible: boolean;
   /** Part 2: menu entries (single items or accordion groups) */
   menuEntries?: SecondaryNavMenuEntry[];
+  /** Optional content pinned to the top of the menu body, above the entries. */
+  menuHeader?: React.ReactNode;
   /** Part 3: bottom page entries (static, no active state) */
   pageEntries?: SecondaryNavPageEntry[];
   /** Show the search + filter bar */
@@ -166,6 +168,7 @@ export function SecondaryNav({
   heading,
   isVisible,
   menuEntries = [],
+  menuHeader,
   pageEntries = [],
   showSearch = true,
   searchValue = '',
@@ -249,12 +252,16 @@ export function SecondaryNav({
         bodyContent
       ) : (
         <NavMiddle>
+          {menuHeader}
           {menuEntries.map(entry => {
             if (entry.type === 'single') {
               return <MenuSingleItem key={entry.item.id} item={entry.item} />;
             }
             if (entry.type === 'group') {
               return <MenuGroupItem key={entry.group.id} group={entry.group} />;
+            }
+            if (entry.type === 'divider') {
+              return <MenuDivider key={entry.id} />;
             }
             return <MenuSectionLabel key={entry.label.id}>{entry.label.label}</MenuSectionLabel>;
           })}

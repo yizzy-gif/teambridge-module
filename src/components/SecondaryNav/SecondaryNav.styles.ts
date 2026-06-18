@@ -1,4 +1,4 @@
-import styled from 'styled-components';
+import styled, { css, keyframes } from 'styled-components';
 
 export const SECONDARY_NAV_WIDTH = 270;
 export const SECONDARY_NAV_MIN_WIDTH = 220;
@@ -191,6 +191,13 @@ export const GroupChevron = styled.div<{ $expanded: boolean }>`
   }
 `;
 
+/* A row slides down + fades in as it mounts into a group — i.e. when a case
+   moves between states (→ Working, → Done) as Ultron progresses it. */
+const rowEnter = keyframes`
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+`;
+
 /**
  * Children container — indented so child labels align with the group label.
  */
@@ -201,13 +208,29 @@ export const GroupChildren = styled.div`
   /* Align children flush with the group header / top-level items so the
      selected-row background lines up with the upper-level menu items. */
   padding-left: 0;
+
+  /* Animate each row in on mount — the visible half of a case moving groups. */
+  & > * {
+    animation: ${rowEnter} var(--duration-base, 250ms) var(--ease-out, cubic-bezier(0, 0, 0.2, 1)) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    & > * { animation: none; }
+  }
 `;
 
-/** Wrapper for GroupRow + GroupChildren — keeps internal gap tight */
-export const MenuGroupWrapper = styled.div`
+/** Wrapper for GroupRow + GroupChildren — keeps internal gap tight. When
+ *  `$outlined`, the whole group (header + items) is boxed to stand out. */
+export const MenuGroupWrapper = styled.div<{ $outlined?: boolean }>`
   display: flex;
   flex-direction: column;
   gap: 4px;
+
+  ${p => p.$outlined && css`
+    border: 1px solid var(--color-border-opaque);
+    border-radius: 12px;
+    padding: 4px;
+  `}
 `;
 
 /** Quiet section label inside the menu body (e.g. "My apps") */
@@ -261,6 +284,16 @@ export const BottomDivider = styled.hr`
   display: block;
   width: 100%;
   height: 1px;
+  background: var(--color-border-opaque, #e8eaee);
+`;
+
+/* Inline divider between menu entries (e.g. above the Done group). */
+export const MenuDivider = styled.hr`
+  all: unset;
+  display: block;
+  width: 100%;
+  height: 1px;
+  margin: var(--space-1) 0;
   background: var(--color-border-opaque, #e8eaee);
 `;
 

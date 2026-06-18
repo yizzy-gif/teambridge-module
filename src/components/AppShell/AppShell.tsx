@@ -20,6 +20,8 @@ export interface AppShellProps
   children: ReactNode;
   secNavHeading: string;
   showSecondaryNav?: boolean;
+  /** Hide the top nav bar (heading + actions). @default true (shown) */
+  showTopNav?: boolean;
 
   /** Mobile-only extras. When present, viewports below the mobile
    *  breakpoint render the MobileShell chrome instead of DesktopShell. */
@@ -50,7 +52,7 @@ export function AppShell(props: AppShellProps) {
         moduleGroups={nav.moduleGroups}
         primaryLabel={nav.primaryLabel}
         secondaryLabel={nav.secondaryLabel}
-        menuEntries={props.menuEntries}
+        menuEntries={props.menuEntries ?? []}
         user={props.user}
         onUserClick={props.onUserClick}
         onMobileNavigate={nav.onMobileNavigate}

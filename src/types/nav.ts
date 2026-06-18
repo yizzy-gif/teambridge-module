@@ -44,6 +44,8 @@ export interface SecondaryNavMenuGroup {
   /** Optional trailing element rendered before the chevron (badge, tag, etc.). */
   trailingBadge?: ReactNode;
   defaultExpanded?: boolean;
+  /** Box the group (header + items) in an outline to make it prominent. */
+  outlined?: boolean;
   children: SecondaryNavMenuItem[];
 }
 
@@ -55,7 +57,8 @@ export interface SecondaryNavSectionLabel {
 export type SecondaryNavMenuEntry =
   | { type: 'single'; item: SecondaryNavMenuItem }
   | { type: 'group'; group: SecondaryNavMenuGroup }
-  | { type: 'label'; label: SecondaryNavSectionLabel };
+  | { type: 'label'; label: SecondaryNavSectionLabel }
+  | { type: 'divider'; id: string };
 
 /** Bottom page entries (e.g. Usage, Settings) */
 export interface SecondaryNavPageEntry {

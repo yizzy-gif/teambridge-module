@@ -74,6 +74,7 @@ export function ModuleDrawer({
                             </Row>
                           );
                         }
+                        if (entry.type !== 'group') return null;   // label / divider: not shown in the drawer
                         const group = entry.group;
                         return (
                           <div key={group.id}>
